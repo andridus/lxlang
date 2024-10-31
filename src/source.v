@@ -36,7 +36,7 @@ fn (mut s Source) get_next_string() !string {
 fn (mut s Source) get_next_ident() !string {
 	mut bin := []u8{}
 	for s.eof() == false {
-		if is_space_delimiter(s.current) {
+		if is_space_delimiter(s.current) || is_symbol(s.current) {
 			break
 		} else {
 			bin << s.current
@@ -47,5 +47,22 @@ fn (mut s Source) get_next_ident() !string {
 		return error('not a ident')
 	} else {
 		return bin.bytestr()
+	}
+}
+
+fn (mut s Source) get_next_number() ![]u8 {
+	mut numbers := []u8{}
+	for s.eof() == false {
+		if !is_digit(s.current) {
+			break
+		} else {
+			numbers << s.current
+		}
+		s.next()
+	}
+	if numbers.len == 0 {
+		return error('not a number')
+	} else {
+		return numbers
 	}
 }

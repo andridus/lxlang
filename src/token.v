@@ -4,7 +4,12 @@ struct TokenRef {
 	table TableEnum
 }
 
+fn (t TokenRef) str() string {
+	return t.token.str()
+}
+
 enum TableEnum {
+	none
 	atoms
 	binary
 	idents
@@ -23,4 +28,11 @@ enum Token {
 	rpar
 	lsbr
 	rsbr
+	arroba
+	typespec
+	keyword
+	module_name
+	integer
 }
+
+const keywords = ['defmodule', 'def', 'defp', 'end', 'do', 'defmacro', 'defmacrop']
