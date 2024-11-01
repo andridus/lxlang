@@ -13,6 +13,8 @@ enum TableEnum {
 	atoms
 	binary
 	idents
+	integers
+	bigints
 	floats
 	consts
 	modules
@@ -30,9 +32,22 @@ enum Token {
 	rsbr
 	arroba
 	typespec
-	keyword
 	module_name
 	integer
+	float
+	do
+	end
+	defmodule
+	def
+	defp
+	defmacro
+	defmacrop
+	operator
 }
 
-const keywords = ['defmodule', 'def', 'defp', 'end', 'do', 'defmacro', 'defmacrop']
+enum Number {
+	integer
+	integer64
+	big
+	float
+}

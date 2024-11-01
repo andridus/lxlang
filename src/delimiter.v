@@ -5,6 +5,9 @@ pub fn is_string_delimiter(ch u8) bool {
 }
 
 pub fn is_space_delimiter(ch u8) bool {
+	return ch in [` `]
+}
+pub fn is_broken_ident(ch u8) bool {
 	return ch in [` `, `\n`]
 }
 

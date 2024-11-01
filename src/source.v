@@ -23,6 +23,7 @@ fn (mut s Source) get_next_string() !string {
 		for s.eof() == false {
 			s.next()
 			if is_string_delimiter(s.current) {
+				s.next()
 				break
 			} else {
 				bin << s.current
@@ -36,7 +37,7 @@ fn (mut s Source) get_next_string() !string {
 fn (mut s Source) get_next_ident() !string {
 	mut bin := []u8{}
 	for s.eof() == false {
-		if is_space_delimiter(s.current) || is_symbol(s.current) {
+		if is_broken_ident(s.current) || is_symbol(s.current) {
 			break
 		} else {
 			bin << s.current
@@ -50,19 +51,34 @@ fn (mut s Source) get_next_ident() !string {
 	}
 }
 
-fn (mut s Source) get_next_number() ![]u8 {
+fn (mut s Source) get_next_number() !([]u8, Number) {
+	mut kind := Number.integer
 	mut numbers := []u8{}
 	for s.eof() == false {
-		if !is_digit(s.current) {
-			break
-		} else {
-			numbers << s.current
+		match true {
+			is_digit(s.current) {
+				numbers << s.current
+			}
+			s.current == `_` {
+				s.next()
+				continue
+			}
+			s.current == `.` && kind != .float {
+				numbers << s.current
+				kind = .float
+			}
+			s.current == `.` && kind == .float {
+				return error('invalid number')
+			}
+			else {
+				break
+			}
 		}
 		s.next()
 	}
 	if numbers.len == 0 {
 		return error('not a number')
 	} else {
-		return numbers
+		return numbers, kind
 	}
 }
