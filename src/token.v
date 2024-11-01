@@ -22,6 +22,7 @@ enum TableEnum {
 }
 
 enum Token {
+	nil
 	ident
 	string
 	lcbr
@@ -43,6 +44,7 @@ enum Token {
 	defmacro
 	defmacrop
 	operator
+	function_name
 }
 
 enum Number {

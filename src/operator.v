@@ -139,4 +139,4 @@ const operators_3 = [
 	[`&`, `&`, `&`],
 	[`|`, `|`, `|`],
 ]
-const operators_str = [ 'when', 'and', 'or', 'in', 'not' ]
+const operators_str = ['when', 'and', 'or', 'in', 'not']

@@ -5,6 +5,7 @@ defmodule A do
 	def b() :: integer do
 		1
 		a = "a"
-		a <<  ["a"]
+		a << ["a"]
+		a()
 	end
 end

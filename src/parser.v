@@ -1,11 +1,12 @@
 struct Parser {
 mut:
-	source   Source
-	binaries []string
-	integers []int
-	floats   []f64
-	idents   []string
-	tokens   []TokenRef
+	source       Source
+	binaries     []string
+	integers     []int
+	floats       []f64
+	idents       []string
+	tokens       []TokenRef
+	token_before TokenRef
 }
 
 fn (mut p Parser) parse_tokens() ![]TokenRef {
@@ -15,42 +16,53 @@ fn (mut p Parser) parse_tokens() ![]TokenRef {
 				p.source.next()
 				continue
 			}
-			p.source.current == `(` {
-				p.tokens << TokenRef{
-					token: .lpar
+			p.source.current == `(` && p.token_before.token == .function_name {
+				// parse function args
+				for p.source.eof() == false {
+					p.source.next()
+					if p.source.current == `)` {
+						p.source.next()
+						break
+					}
 				}
+				continue
+			}
+			p.source.current == `(` {
+				p.add_token(TokenRef{
+					token: .lpar
+				})
 			}
 			p.source.current == `)` {
-				p.tokens << TokenRef{
+				p.add_token(TokenRef{
 					token: .rpar
-				}
+				})
 			}
 			p.source.current == `{` {
-				p.tokens << TokenRef{
+				p.add_token(TokenRef{
 					token: .lcbr
-				}
+				})
 			}
 			p.source.current == `}` {
-				p.tokens << TokenRef{
+				p.add_token(TokenRef{
 					token: .rcbr
-				}
+				})
 			}
 			p.source.current == `[` {
-				p.tokens << TokenRef{
+				p.add_token(TokenRef{
 					token: .lsbr
-				}
+				})
 			}
 			p.source.current == `]` {
-				p.tokens << TokenRef{
+				p.add_token(TokenRef{
 					token: .rsbr
-				}
+				})
 			}
 			p.source.current == `:` {
 				p.source.next()
 				if p.source.current == `:` {
-					p.tokens << TokenRef{
+					p.add_token(TokenRef{
 						token: .typespec
-					}
+					})
 				} else {
 					continue
 				}
@@ -66,9 +78,9 @@ fn (mut p Parser) parse_tokens() ![]TokenRef {
 						p.source.next()
 					}
 				}
-				p.tokens << TokenRef{
+				p.add_token(TokenRef{
 					token: .operator
-				}
+				})
 				continue
 			}
 			is_letter(p.source.current) {
@@ -79,24 +91,29 @@ fn (mut p Parser) parse_tokens() ![]TokenRef {
 				token := match true {
 					keywords.index(ident) != -1 { Token.from(ident)! }
 					is_capital(curr) { Token.module_name }
+					p.token_before.token == .def { Token.function_name }
+					p.source.current == `(` { Token.function_name }
 					else { Token.ident }
 				}
 
-				if token in [.module_name, .ident] {
-					idx0 := p.idents.index(ident)
-					if idx0 != -1 {
-						idx = idx0
-					} else {
-						idx = p.idents.len
-						p.idents << ident
+				match token {
+					.module_name, .ident, .function_name {
+						idx0 := p.idents.index(ident)
+						if idx0 != -1 {
+							idx = idx0
+						} else {
+							idx = p.idents.len
+							p.idents << ident
+						}
 					}
+					else {}
 				}
 
-				p.tokens << TokenRef{
+				p.add_token(TokenRef{
 					idx:   idx
 					table: .idents
 					token: token
-				}
+				})
 				continue
 			}
 			is_string_delimiter(p.source.current) {
@@ -109,11 +126,11 @@ fn (mut p Parser) parse_tokens() ![]TokenRef {
 					idx = p.integers.len
 					p.binaries << str
 				}
-				p.tokens << TokenRef{
+				p.add_token(TokenRef{
 					idx:   idx
 					table: .binary
 					token: .string
-				}
+				})
 				continue
 			}
 			is_digit(p.source.current) {
@@ -130,11 +147,11 @@ fn (mut p Parser) parse_tokens() ![]TokenRef {
 							idx = p.integers.len
 							p.integers << value1
 						}
-						p.tokens << TokenRef{
+						p.add_token(TokenRef{
 							idx:   idx
 							table: .integers
 							token: .integer
-						}
+						})
 					}
 					.float {
 						value1 := value.bytestr().f64()
@@ -145,11 +162,11 @@ fn (mut p Parser) parse_tokens() ![]TokenRef {
 							idx = p.floats.len
 							p.floats << value1
 						}
-						p.tokens << TokenRef{
+						p.add_token(TokenRef{
 							idx:   idx
 							table: .floats
 							token: .float
-						}
+						})
 					}
 					else {
 						return error('TODO implements for bigint and integer64')
@@ -164,3 +181,10 @@ fn (mut p Parser) parse_tokens() ![]TokenRef {
 	}
 	return []
 }
+
+fn (mut p Parser) add_token(t TokenRef) {
+	p.token_before = t
+	p.tokens << t
+}
+
+// fn change_token_before()
