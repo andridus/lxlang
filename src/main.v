@@ -20,14 +20,31 @@ fn prepare(path string) {
 		total:   source.len
 		current: source[0]
 	}
-	mut parser := Parser{
-		source: &src
+	mut lexer := Lexer{
+		source:       &src
+		token_before: &TokenRef{}
+		types:        default_types()
 	}
-	parser.parse_tokens() or {
-		println(err.msg())
-		exit(1)
+	for lexer.source.eof() == false {
+		lexer.parse_tokens() or {
+			println(err.msg())
+			exit(1)
+		}
 	}
 	elapsed := time.since(start)
-	println(parser)
+	println(lexer)
 	println('Tempo de execução: ${elapsed}')
+}
+
+fn default_types() []string {
+	return [
+		'nil',
+		'atom',
+		'boolean',
+		'string',
+		'integer',
+		'float',
+		'list',
+		'tuple',
+	]
 }

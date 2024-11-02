@@ -5,7 +5,11 @@ struct TokenRef {
 }
 
 fn (t TokenRef) str() string {
-	return t.token.str()
+	if t.table != .none {
+		return '${t.token.str()}:${t.idx}'
+	} else {
+		return '${t.token.str()}'
+	}
 }
 
 enum TableEnum {
@@ -31,6 +35,7 @@ enum Token {
 	rpar
 	lsbr
 	rsbr
+	comma
 	arroba
 	typespec
 	module_name
@@ -45,6 +50,7 @@ enum Token {
 	defmacrop
 	operator
 	function_name
+	caller_function
 }
 
 enum Number {

@@ -17,7 +17,7 @@ pub fn is_digit(a u8) bool {
 }
 
 pub fn is_symbol(a u8) bool {
-	return a in [`(`, `)`, `{`, `}`, `[`, `]`]
+	return a in [`(`, `)`, `{`, `}`, `[`, `]`, `,`]
 }
 
 pub fn is_letter(a u8) bool {
