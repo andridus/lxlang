@@ -4,23 +4,33 @@ mut:
 	i       int
 	total   int
 	current u8
+	peak    u8
 }
 
 fn (mut s Source) next() {
-	s.i++
-	if s.i < s.total {
+	if s.i < s.total - 1 {
+		s.i++
 		s.current = s.src[s.i]
+		if s.i + 1 < s.total {
+			s.peak = s.src[s.i + 1]
+		} else {
+			s.peak = 0
+		}
 	}
 }
 
 fn (s Source) eof() bool {
-	return s.i >= s.total
+	return s.i >= s.total - 1
+}
+
+fn (s Source) peak_eof() bool {
+	return s.i + 1 >= s.total - 1
 }
 
 fn (mut s Source) get_next_string() !string {
 	if is_string_delimiter(s.current) {
 		mut bin := []u8{}
-		for s.eof() == false {
+		for !s.eof() {
 			s.next()
 			if is_string_delimiter(s.current) {
 				s.next()
@@ -35,14 +45,15 @@ fn (mut s Source) get_next_string() !string {
 }
 
 fn (mut s Source) get_next_ident() !string {
-	mut bin := []u8{}
-	for s.eof() == false {
-		if is_broken_ident(s.current) || is_symbol(s.current) {
+	mut bin := [s.current]
+	for !s.peak_eof() {
+		peak := s.src[s.i + 1]
+		if is_broken_ident(peak) || is_symbol(peak) {
 			break
 		} else {
-			bin << s.current
+			s.next()
 		}
-		s.next()
+		bin << s.current
 	}
 	if bin.len == 0 {
 		return error('not a ident')
@@ -54,7 +65,7 @@ fn (mut s Source) get_next_ident() !string {
 fn (mut s Source) get_next_number() !([]u8, Number) {
 	mut kind := Number.integer
 	mut numbers := []u8{}
-	for s.eof() == false {
+	for !s.eof() {
 		match true {
 			is_digit(s.current) {
 				numbers << s.current

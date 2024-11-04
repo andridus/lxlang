@@ -11,22 +11,26 @@ fn main() {
 
 fn prepare(path string) {
 	start := time.now()
-	source := os.read_bytes(path) or {
+	mut source := os.read_bytes(path) or {
 		println('File \'${path}\' not found ')
+		exit(1)
+	}
+	if source.len == 0 {
 		exit(1)
 	}
 	mut src := Source{
 		src:     source
 		total:   source.len
 		current: source[0]
+		peak:    source[1]
 	}
 	mut lexer := Lexer{
 		source:       &src
 		token_before: &TokenRef{}
 		types:        default_types()
 	}
-	for lexer.source.eof() == false {
-		lexer.parse_tokens() or {
+	for !lexer.source.eof() {
+		lexer.parse_next_token() or {
 			println(err.msg())
 			exit(1)
 		}
@@ -38,6 +42,7 @@ fn prepare(path string) {
 
 fn default_types() []string {
 	return [
+		'any',
 		'nil',
 		'atom',
 		'boolean',

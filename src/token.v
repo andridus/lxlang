@@ -38,6 +38,7 @@ enum Token {
 	comma
 	arroba
 	typespec
+	colon
 	module_name
 	integer
 	float
