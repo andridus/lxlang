@@ -7,6 +7,7 @@ mut:
 	idents                  []string
 	types                   []string
 	functions               []Function
+	functions_caller        []CallerFunction
 	functions_idx           map[string]int
 	tokens                  []TokenRef
 	tmp_args                []Arg
@@ -26,6 +27,16 @@ struct Function {
 mut:
 	starts  int
 	ends    int
+	returns int
+	args    []Arg
+}
+
+struct CallerFunction {
+	name         string
+	starts       int
+	function_idx int
+mut:
+	module  string
 	returns int
 	args    []Arg
 }
@@ -267,7 +278,12 @@ fn (mut l Lexer) parse_next_token_priv() !TokenRef {
 				.caller_function {
 					table = .functions
 					if idx0 := l.functions_idx[ident] {
-						idx = idx0
+						idx = l.functions_caller.len
+						l.functions_caller << &CallerFunction{
+							name:         ident
+							starts:       l.tokens.len
+							function_idx: idx0
+						}
 					} else {
 						println('undefined function')
 					}
@@ -361,7 +377,7 @@ fn (mut l Lexer) parse_next_token_priv() !TokenRef {
 			return error('TODO implements for bigint and integer64')
 		}
 		else {
-			return error('Unexpected token ${l.source.current}')
+			return error('Unexpected token ${[l.source.current].bytestr()}')
 		}
 	}
 }
