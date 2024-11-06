@@ -12,6 +12,27 @@ fn (t TokenRef) str() string {
 	}
 }
 
+fn (t TokenRef) to_node() NodeEl {
+	return match t.token {
+		.module_name {
+			NodeEl(Node{
+				left:  TokenRef{
+					token: .__aliases__
+				}
+				right: [NodeEl(t)]
+			})
+		}
+		.ident, .function_name, .caller_function {
+			NodeEl(Node{
+				left: t
+			})
+		}
+		else {
+			NodeEl(t)
+		}
+	}
+}
+
 enum TableEnum {
 	none
 	atoms
@@ -27,6 +48,7 @@ enum TableEnum {
 
 enum Token {
 	nil
+	eof
 	ident
 	string
 	lcbr
@@ -52,6 +74,8 @@ enum Token {
 	operator
 	function_name
 	caller_function
+	__aliases__
+	__block__
 }
 
 enum Number {

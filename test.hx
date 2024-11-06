@@ -1,14 +1,11 @@
 defmodule A do
-	def z :: float do
-		1.0
+	def a do
+		1
 	end
-	def a :: float do
-		1.0
+	def b do
+		1
 	end
-	def b(arg1) :: integer do
-		a()
-	end
-	def c(arg1 :: integer, arg2 :: boolean) :: boolean do
-		false
+	def c do
+		1
 	end
 end

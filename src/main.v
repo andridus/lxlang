@@ -24,19 +24,27 @@ fn prepare(path string) {
 		current: source[0]
 		peak:    source[1]
 	}
-	mut lexer := Lexer{
+	mut compiler := Compiler{
 		source:       &src
 		token_before: &TokenRef{}
 		types:        default_types()
 	}
-	for !lexer.source.eof() {
-		lexer.parse_next_token() or {
+	for !compiler.source.eof() {
+		compiler.parse_next_token() or {
 			println(err.msg())
 			exit(1)
 		}
 	}
+	if compiler.tokens.len > 0 {
+		node := compiler.parse_stmt() or {
+			println('error')
+			println(err.msg())
+			exit(1)
+		}
+		compiler.nodes = node
+	}
 	elapsed := time.since(start)
-	println(lexer)
+	println(compiler.nodes)
 	println('Tempo de execução: ${elapsed}')
 }
 
