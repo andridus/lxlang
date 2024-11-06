@@ -4,14 +4,6 @@ struct TokenRef {
 	table TableEnum
 }
 
-fn (t TokenRef) str() string {
-	if t.table != .none {
-		return '${t.token.str()}:${t.idx}'
-	} else {
-		return '${t.token.str()}'
-	}
-}
-
 fn (t TokenRef) to_node() NodeEl {
 	return match t.token {
 		.module_name {

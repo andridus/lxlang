@@ -58,11 +58,12 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 			c.match_next(.end)!
 			return Node{
 				left:  left
-				right: [right, [
-					NodeEl(Keyword{TokenRef{
-						token: .do
-					}, right1}),
-				]]
+				right: [right,
+					[
+						NodeEl(Keyword{TokenRef{
+							token: .do
+						}, right1}),
+					]]
 			}
 		}
 		.def {

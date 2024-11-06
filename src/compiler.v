@@ -1,4 +1,6 @@
-const c_nil = NodeEl(Nil(0))
+const c_nil = NodeEl(TokenRef{
+	token: .nil
+})
 
 struct Compiler {
 mut:
@@ -28,8 +30,7 @@ mut:
 	nodes                   NodeEl = c_nil
 }
 
-type Nil = int
-type NodeEl = TokenRef | Node | []NodeEl | Keyword | Nil
+type NodeEl = TokenRef | Node | []NodeEl | Keyword
 
 struct Keyword {
 	key   NodeEl
@@ -42,7 +43,6 @@ fn (n NodeEl) str() string {
 		Node { n.str() }
 		Keyword { '${n.key.str()}: ${n.value.str()}' }
 		[]NodeEl { n.str() }
-		Nil { 'nil' }
 	}
 }
 
