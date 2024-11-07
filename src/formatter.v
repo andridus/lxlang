@@ -75,3 +75,35 @@ pub const reset = '\033[0m'
 pub fn c(c Color, decor Decoration, text string) string {
 	return '${prefix}${int(decor)}${suffix}${prefix}${int(c)}${suffix}${text}${reset}'
 }
+
+fn (n NodeEl) to_str(idx int) string {
+	mut idx1 := idx + 1
+	return match n {
+		TokenRef {
+			n.to_str(idx1)
+		}
+		Node {
+			n.to_str(idx1)
+		}
+		Keyword {
+			'${n.key.to_str(idx1)}: ${n.value.to_str(idx1)}'
+		}
+		[]NodeEl {
+			'[${n.map(it.to_str(idx)).join(', ')}]'
+		}
+	}
+}
+
+fn (n Node) to_str(idx int) string {
+	space := ' '.repeat(idx)
+	mut broken := ''
+	if n.right !is TokenRef {
+		broken = '\n${space}'
+	}
+	right := n.right.to_str(idx).replace('}]', '}\n ${space}]')
+	return '${broken}{${n.left.to_str(idx)}, ${n.attributes}, ${right}}}'
+}
+
+fn (t TokenRef) to_str(idx int) string {
+	return t.str()
+}

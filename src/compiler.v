@@ -37,23 +37,10 @@ struct Keyword {
 	value NodeEl
 }
 
-fn (n NodeEl) str() string {
-	return match n {
-		TokenRef { n.str() }
-		Node { n.str() }
-		Keyword { '${n.key.str()}: ${n.value.str()}' }
-		[]NodeEl { n.str() }
-	}
-}
-
 struct Node {
 	left       NodeEl = c_nil
 	right      NodeEl = c_nil
 	attributes []string
-}
-
-fn (n Node) str() string {
-	return '{${n.left}, ${n.attributes}, ${n.right}}'
 }
 
 struct Function {

@@ -44,7 +44,7 @@ fn prepare(path string) {
 		compiler.nodes = node
 	}
 	elapsed := time.since(start)
-	println(compiler.nodes)
+	println(compiler.nodes.to_str(0))
 	println('Tempo de execução: ${elapsed}')
 }
 
