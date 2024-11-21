@@ -10,7 +10,7 @@ mut:
 	attributes     []int
 	exports        []Term
 	functions      []BeamFunction
-	imports        []Term
+	imports        [][]int
 	code           []u8
 }
 
@@ -110,7 +110,14 @@ fn (mut c Compiler) to_generate() !Beam {
 
 fn (mut b Beam) put_import(terms []Term) int {
 	idx := b.imports.len
-	b.imports << [terms]
+	mut imp := []int{}
+	a1 := terms[0] as TokenRef
+	b1 := terms[1] as TokenRef
+	c1 := terms[2] as int
+	imp << int(a1.idx)
+	imp << int(b1.idx)
+	imp << c1
+	b.imports << [imp]
 	return idx
 }
 
@@ -358,10 +365,10 @@ fn (mut c Compiler) to_beam() ![]u8 {
 	beam := c.to_generate()!
 	// base otp 22
 	mut chunks := []u8{}
-	// chunks << beam.build_code_chunk() // Code
+	chunks << beam.build_code_chunk() // Code
 	chunks << beam.build_atom_chunk(c) // AtU8
-	println(chunks)
-	// chunks << beam.build_imp_chunk() // ImpT
+	chunks << beam.build_imp_chunk() // ImpT
+	// println(chunks)
 	// chunks << beam.build_exp_chunk() // ExpT
 	// chunks << beam.build_loc_chunk() // LocT
 	// chunks << beam.build_str_chunk() // StrT
@@ -423,7 +430,6 @@ fn (b Beam) compact_term_encoding() []u8 {
 }
 
 fn (b Beam) build_atom_chunk(c &Compiler) []u8 {
-	println(c.idents)
 	num_atoms := u32_to_byte(u32(c.idents.len))
 	mut atom_table := []u8{}
 	for i in c.idents {
@@ -441,16 +447,23 @@ fn (b Beam) build_atom_chunk(c &Compiler) []u8 {
 	return atom_chunk
 }
 
-// fn (b Beam) build_imp_chunk() []u8 {
-// 	num_imports := u8(2)
-// 	imports_table := [u8(0), 1, 2, 3]
-// 	mut imp_chunk := []u8{}
-// 	imp_chunk << 'ImpT'.bytes()
-// 	imp_chunk << u32_to_byte(u32(num_imports))
-// 	imp_chunk << imports_table
-
-// 	return imp_chunk
-// }
+fn (b Beam) build_imp_chunk() []u8 {
+	num_imports := u32_to_byte(u32(b.imports.len))
+	mut imports_table := []u8{}
+	for imp_fun in b.imports {
+		for x in imp_fun {
+			imports_table << u32_to_byte(u32(x))
+		}
+	}
+	size := num_imports.len + imports_table.len
+	mut imp_chunk := []u8{}
+	imp_chunk << 'ImpT'.bytes()
+	imp_chunk << u32_to_byte(u32(size))
+	imp_chunk << num_imports
+	imp_chunk << imports_table
+	imp_chunk << pad(size)
+	return imp_chunk
+}
 
 // fn (b Beam) build_exp_chunk() []u8 {
 // 	num_exports := u8(2)
