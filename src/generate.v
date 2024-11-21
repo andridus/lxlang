@@ -358,8 +358,9 @@ fn (mut c Compiler) to_beam() ![]u8 {
 	beam := c.to_generate()!
 	// base otp 22
 	mut chunks := []u8{}
-	chunks << beam.build_code_chunk() // Code
-	// chunks << beam.build_atom_chunk() // AtU8
+	// chunks << beam.build_code_chunk() // Code
+	chunks << beam.build_atom_chunk(c) // AtU8
+	println(chunks)
 	// chunks << beam.build_imp_chunk() // ImpT
 	// chunks << beam.build_exp_chunk() // ExpT
 	// chunks << beam.build_loc_chunk() // LocT
@@ -379,7 +380,7 @@ fn pad(num int) []u8 {
 	return if value == 0 {
 		[]u8{}
 	} else {
-		[u8(0)].repeat(value)
+		[u8(0)].repeat(4 - value)
 	}
 }
 
@@ -421,15 +422,24 @@ fn (b Beam) compact_term_encoding() []u8 {
 	return []u8{}
 }
 
-// fn (b Beam) build_atom_chunk() []u8 {
-// 	num_atoms := u8(2)
-// 	atom_table := [u8(0), 1, 2, 3]
-// 	mut atom_chunk := []u8{}
-// 	atom_chunk << 'AtU8'.bytes()
-// 	atom_chunk << u32_to_byte(u32(num_atoms))
-// 	atom_chunk << atom_table
-// 	return atom_chunk
-// }
+fn (b Beam) build_atom_chunk(c &Compiler) []u8 {
+	println(c.idents)
+	num_atoms := u32_to_byte(u32(c.idents.len))
+	mut atom_table := []u8{}
+	for i in c.idents {
+		// max length for atom is 255
+		atom_table << u8(i.len)
+		atom_table << i.bytes()
+	}
+	size := num_atoms.len + atom_table.len
+	mut atom_chunk := []u8{}
+	atom_chunk << 'AtU8'.bytes()
+	atom_chunk << u32_to_byte(u32(size))
+	atom_chunk << num_atoms
+	atom_chunk << atom_table
+	atom_chunk << pad(size)
+	return atom_chunk
+}
 
 // fn (b Beam) build_imp_chunk() []u8 {
 // 	num_imports := u8(2)
