@@ -5,12 +5,17 @@ const c_nil = NodeEl(TokenRef{
 struct Compiler {
 mut:
 	source                  Source
+	filesource              string
+	module_name             TokenRef
 	binaries                []string
 	integers                []int
 	floats                  []f64
 	idents                  []string
 	types                   []string
+	exports                 []string
+	attributes              []string
 	functions               []Function
+	functions_body          map[int]NodeEl
 	functions_caller        []CallerFunction
 	functions_idx           map[string]int
 	tokens                  []TokenRef
@@ -20,6 +25,7 @@ mut:
 	in_function_id          int
 	in_function_args        bool
 	inside_context          []string
+	labels                  []string
 	count_context           int
 	count_do                int
 	ignore_token            bool
@@ -46,10 +52,11 @@ struct Node {
 struct Function {
 	name string
 mut:
-	starts  int
-	ends    int
-	returns int
-	args    []Arg
+	starts   int
+	ends     int
+	returns  int
+	location string
+	args     []Arg
 }
 
 struct CallerFunction {
@@ -67,6 +74,33 @@ struct Arg {
 mut:
 	type       int
 	match_expr int // pointer to match exprs
+}
+
+fn (c Compiler) get_function_value(t TokenRef) ?Function {
+	if t.table == .functions {
+		if function := c.functions[t.idx] {
+			return function
+		}
+	}
+	return none
+}
+
+fn (c Compiler) get_ident_value(t TokenRef) ?string {
+	if t.table == .idents {
+		if ident := c.idents[t.idx] {
+			return ident
+		}
+	}
+	return none
+}
+
+fn (c Compiler) get_integer_value(t TokenRef) ?int {
+	if t.table == .integers {
+		if integer := c.integers[t.idx] {
+			return integer
+		}
+	}
+	return none
 }
 
 fn (mut c Compiler) parse_next_token() !TokenRef {
@@ -284,11 +318,12 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 							idx = c.functions.len
 							c.functions_idx[ident] = idx
 							c.functions << &Function{
-								name:    ident
-								starts:  0
-								ends:    0
-								returns: 0
-								args:    []
+								name:     ident
+								location: c.filesource
+								starts:   0
+								ends:     0
+								returns:  0
+								args:     []
 							}
 						}
 						c.in_function = true

@@ -42,10 +42,9 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 		.defmodule {
 			left := c.current_token.to_node()
 			c.match_next(.module_name)!
+			c.module_name = c.current_token
 			mut right := c.current_token.to_node()
-
 			c.match_next(.do)!
-
 			mut elems := []NodeEl{}
 			for !c.eof() {
 				if c.peak_token.token == .end {
@@ -69,6 +68,7 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 		.def {
 			left := c.current_token.to_node()
 			c.match_next(.function_name)!
+			function_name := c.current_token
 			mut right := [c.current_token.to_node()]
 			tk := c.maybe_match_next([.typespec, .do, .rpar])!
 			match tk {
@@ -81,13 +81,17 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 				else {}
 			}
 
+			mut right0 := []NodeEl{}
 			if c.peak_token.token != .end {
 				do := TokenRef{
 					token: .do
 				}
-				right << NodeEl(Keyword{do, c.parse_stmt()!})
+				parsed := c.parse_stmt()!
+				right0 << parsed
+				right << NodeEl(Keyword{do, parsed})
 			}
 			c.match_next(.end)!
+			c.functions_body[function_name.idx] = right0
 			return Node{
 				left:  left
 				right: right

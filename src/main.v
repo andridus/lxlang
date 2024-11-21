@@ -26,6 +26,7 @@ fn prepare(path string) {
 	}
 	mut compiler := Compiler{
 		source:       &src
+		filesource:   path
 		token_before: &TokenRef{}
 		types:        default_types()
 	}
@@ -44,7 +45,13 @@ fn prepare(path string) {
 		compiler.nodes = node
 	}
 	elapsed := time.since(start)
-	println(compiler.nodes.to_str(0))
+	// println(compiler.nodes.to_str(0))
+	compiler.to_beam() or {
+		println(err.msg())
+		println('error on compile beam')
+		exit(1)
+	}
+	// println('beam: ${beam}')
 	println('Tempo de execução: ${elapsed}')
 }
 
