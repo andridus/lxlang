@@ -31,6 +31,7 @@ mut:
 	ignore_token            bool
 	is_next_function_return bool
 	current_position        int = -1
+	current_line            int = 1
 	current_token           TokenRef
 	peak_token              TokenRef
 	nodes                   NodeEl = c_nil
@@ -53,6 +54,7 @@ struct Function {
 	name string
 mut:
 	starts   int
+	line     int
 	ends     int
 	returns  int
 	location string
@@ -61,6 +63,7 @@ mut:
 
 struct CallerFunction {
 	name         string
+	line         int
 	starts       int
 	function_idx int
 mut:
@@ -115,6 +118,9 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 	// $dbg
 	match true {
 		c.source.current in [` `, `\n`, 9] {
+			if c.source.current == `\n` {
+				c.current_line++
+			}
 			c.source.next()
 			return c.parse_next_token_priv()
 		}
@@ -177,6 +183,9 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 			// maybe get the return
 			for !c.source.eof() {
 				if c.source.current in [` `, `\n`, 9] {
+					if c.source.current == `\n` {
+						c.current_line++
+					}
 					c.source.next()
 				} else {
 					break
@@ -320,6 +329,7 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 							c.functions << &Function{
 								name:     ident
 								location: c.filesource
+								line:     c.current_line
 								starts:   0
 								ends:     0
 								returns:  0
@@ -337,6 +347,7 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 						idx = c.functions_caller.len
 						c.functions_caller << &CallerFunction{
 							name:         ident
+							line:         c.current_line
 							starts:       c.tokens.len
 							function_idx: idx0
 						}

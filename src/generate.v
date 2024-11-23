@@ -1,4 +1,5 @@
 // import compress.zlib
+import crypto.md5
 
 struct Beam {
 mut:
@@ -6,11 +7,15 @@ mut:
 	module_name    string
 	current_label  int
 	labels         []int
-	lines          [][]Term
+	lines          [][]int
+	lines_str      map[int]string
+	num_lines      int
 	attributes     []int
-	exports        []Term
+	exports        [][]int
+	locals         [][]int
 	functions      []BeamFunction
 	imports        [][]int
+	types          []u8
 	code           []u8
 }
 
@@ -100,6 +105,7 @@ mut:
 
 fn (mut c Compiler) to_generate() !Beam {
 	mut beam := Beam{}
+	beam.put_type('any')
 	beam.put_module(mut c)
 	beam.put_functions(mut c)
 	beam.put_exports(mut c)
@@ -108,6 +114,15 @@ fn (mut c Compiler) to_generate() !Beam {
 	return beam
 }
 
+fn (mut b Beam) put_type(typ string) {
+	b.types << u8(15)
+	b.types << u8(255)
+}
+
+// fn mapping_types() map[string]u32 {
+// 	a := map[string]u32{}
+// 	return a
+// }
 fn (mut b Beam) put_import(terms []Term) int {
 	idx := b.imports.len
 	mut imp := []int{}
@@ -124,9 +139,19 @@ fn (mut b Beam) put_import(terms []Term) int {
 fn (mut b Beam) put_line(terms []Term) int {
 	if terms.len > 0 {
 		idx := b.lines.len
-		b.lines << terms
-		return idx + 1
+		if terms[0] is Tuple {
+			t := terms[0] as Tuple
+			if t.terms[0] == Term('location') {
+				file := t.terms[1] as string
+				lin := t.terms[2] as int
+				b.lines << [idx, lin]
+				b.lines_str[idx] = file
+			}
+		}
+		b.num_lines = idx + 1
+		return b.num_lines
 	} else {
+		b.num_lines += 1
 		return 0
 	}
 }
@@ -138,8 +163,12 @@ fn (mut b Beam) put_module(mut c Compiler) {
 }
 
 fn (mut b Beam) put_exports(mut c Compiler) {
-	for f in b.functions {
-		b.exports << Tuple{[Term(f.name), Term(f.arity)]}
+	for f in b.functions.reverse() {
+		mut exp := []int{}
+		exp << c.idents.index(f.name) + 1
+		exp << f.arity
+		exp << f.labels
+		b.exports << [exp]
 	}
 }
 
@@ -305,7 +334,7 @@ fn (mut c Compiler) add_module_info_1(mut b Beam) map[int][]BeamInstruction {
 }
 
 fn (mut c Compiler) function_info(b &Beam, func Function) []BeamInstruction {
-	location := Tuple{[Term('location'), Term(c.filesource), Term(func.starts)]}
+	location := Tuple{[Term('location'), Term(c.filesource), Term(4)]}
 	line := BeamInstruction{
 		inst:  .line
 		terms: [location]
@@ -365,20 +394,22 @@ fn (mut c Compiler) to_beam() ![]u8 {
 	beam := c.to_generate()!
 	// base otp 22
 	mut chunks := []u8{}
-	chunks << beam.build_code_chunk() // Code
 	chunks << beam.build_atom_chunk(c) // AtU8
+	chunks << beam.build_code_chunk() // Code
+	chunks << beam.build_str_chunk(c) // StrT
 	chunks << beam.build_imp_chunk() // ImpT
-	// println(chunks)
-	// chunks << beam.build_exp_chunk() // ExpT
+	chunks << beam.build_exp_chunk() // ExpT
+	chunks << beam.build_lambda_chunk() // FunT
+	chunks << beam.build_literal_chunk() // LitT
+	chunks << beam.build_meta_chunk() // Meta
 	// chunks << beam.build_loc_chunk() // LocT
-	// chunks << beam.build_str_chunk() // StrT
-	// chunks << beam.build_lambda_chunk() // FunT
-	// chunks << beam.build_literal_chunk()! // LitT
 	// chunks << beam.build_line_chunk() // Line
-	// chunks << c.build_type_chunk() // Type
-	// chunks << c.build_meta_chunk() // Meta
+	// chunks << beam.build_type_chunk() // Type
 	// chunks << c.build_attr_chunk() // Attr
 	// chunks << c.build_dbgi_chunk() // Dbgi
+	digest := md5.sum(chunks)
+	println(digest)
+	println(chunks)
 	return chunks
 }
 
@@ -409,24 +440,6 @@ fn (b Beam) build_code_chunk() []u8 {
 	code_chunk << content
 	code_chunk << pad(content.len)
 	return code_chunk
-}
-
-fn (b Beam) compact_term_encoding() []u8 {
-	//           	| 0 0 0 - Literal
-	//           	| 0 0 1 - Integer
-	//           	| 0 1 0 - Atom
-	// 			 			| 0 1 1 - X Register
-	// 			 			| 1 0 0 - Y Register
-	// 			 			| 1 0 1 - label
-	// 			 			| 1 1 0 - Character
-	// 	0 0 0 1 0 | 1 1 1 — Extended — Float
-	// 	0 0 1 0 0 | 1 1 1 — Extended — List
-	// 	0 0 1 1 0 | 1 1 1 — Extended — Floating point register
-	// 	0 1 0 0 0 | 1 1 1 — Extended — Allocation list
-	// 	0 1 0 1 0 | 1 1 1 — Extended — Literal
-	// println(c)
-
-	return []u8{}
 }
 
 fn (b Beam) build_atom_chunk(c &Compiler) []u8 {
@@ -465,74 +478,149 @@ fn (b Beam) build_imp_chunk() []u8 {
 	return imp_chunk
 }
 
-// fn (b Beam) build_exp_chunk() []u8 {
-// 	num_exports := u8(2)
-// 	exports_table := [u8(0), 1, 2, 3]
-// 	mut exp_chunk := []u8{}
-// 	exp_chunk << 'ExpT'.bytes()
-// 	exp_chunk << u32_to_byte(u32(num_exports))
-// 	exp_chunk << exports_table
-// 	return exp_chunk
-// }
+fn (b Beam) build_exp_chunk() []u8 {
+	num_exports := u32_to_byte(u32(b.exports.len))
+	mut exports_table := []u8{}
+	for exp_fun in b.exports {
+		for x in exp_fun {
+			exports_table << u32_to_byte(u32(x))
+		}
+	}
+	size := num_exports.len + exports_table.len
+	mut exp_chunk := []u8{}
+	exp_chunk << 'ExpT'.bytes()
+	exp_chunk << u32_to_byte(u32(size))
+	exp_chunk << num_exports
+	exp_chunk << exports_table
+	exp_chunk << pad(size)
+	return exp_chunk
+}
 
-// fn (b Beam) build_loc_chunk() []u8 {
-// 	num_locals := u8(2)
-// 	locals_table := [u8(0), 1, 2, 3]
-// 	mut loc_chunk := []u8{}
-// 	loc_chunk << 'ExpT'.bytes()
-// 	loc_chunk << u32_to_byte(u32(num_locals))
-// 	loc_chunk << locals_table
-// 	return loc_chunk
-// }
+fn (b Beam) build_loc_chunk() []u8 {
+	num_locals := u32_to_byte(u32(b.locals.len))
+	mut locals_table := []u8{}
+	for loc_fun in b.locals {
+		for x in loc_fun {
+			locals_table << u32_to_byte(u32(x))
+		}
+	}
+	size := num_locals.len + locals_table.len
+	mut loc_chunk := []u8{}
+	loc_chunk << 'LocT'.bytes()
+	loc_chunk << u32_to_byte(u32(size))
+	loc_chunk << num_locals
+	loc_chunk << locals_table
+	loc_chunk << pad(size)
+	return loc_chunk
+}
 
-// fn (b Beam) build_str_chunk() []u8 {
-// 	string_table := [u8(0), 1, 2, 3]
-// 	mut str_chunk := []u8{}
-// 	str_chunk << 'StrT'.bytes()
-// 	str_chunk << string_table
-// 	return str_chunk
-// }
+fn (b Beam) build_str_chunk(c &Compiler) []u8 {
+	num_string := u32_to_byte(u32(c.binaries.len))
+	mut str_table := []u8{}
+	for i in c.binaries {
+		str_table << u8(i.len)
+		str_table << i.bytes()
+	}
+	size := num_string.len + str_table.len
+	mut str_chunk := []u8{}
+	str_chunk << 'StrT'.bytes()
+	// str_chunk << u32_to_byte(u32(size))
+	str_chunk << num_string
+	str_chunk << str_table
+	str_chunk << pad(size)
+	return str_chunk
+}
 
-// fn (b Beam) build_lambda_chunk() []u8 {
-// 	num_lambdas := u8(0)
-// 	lambda_table := []u8{}
-// 	mut lambda_chunk := []u8{}
-// 	if lambda_table.len > 0 {
-// 		lambda_chunk << 'FunT'.bytes()
-// 		lambda_chunk << u32_to_byte(u32(num_lambdas))
-// 		lambda_chunk << lambda_table
-// 	}
-// 	return lambda_chunk
-// }
+fn (b Beam) build_lambda_chunk() []u8 {
+	return []u8{}
+}
 
-// fn (b Beam) build_literal_chunk() ![]u8 {
-// 	num_literals := u8(0)
-// 	literal_table := []u8{}
-// 	mut literal_chunk := []u8{}
-// 	if literal_table.len > 0 {
-// 		mut to_compress := u32_to_byte(u32(num_literals))
-// 		to_compress << literal_table
-// 		zlib.compress(to_compress)!
-// 		literal_chunk << 'LitT'.bytes()
-// 		literal_chunk << literal_table
-// 	}
-// 	return literal_chunk
-// }
+fn (b Beam) build_literal_chunk() []u8 {
+	return []u8{}
+}
 
-// fn (b Beam) build_line_chunk() []u8 {
-// 	ver := u32(0)
-// 	bits := u32(0)
-// 	lines := []u8{}
-// 	fnames := []u8{}
-// 	num_lines := u32(0)
-// 	num_fnames := u32(0)
-// 	mut line_chunk := []u8{}
-// 	line_chunk << 'Line'.bytes()
-// 	line_chunk << u32_to_byte(ver)
-// 	line_chunk << u32_to_byte(bits)
-// 	line_chunk << u32_to_byte(num_lines)
-// 	line_chunk << u32_to_byte(num_fnames)
-// 	line_chunk << lines
-// 	line_chunk << fnames
-// 	return line_chunk
-// }
+fn (b Beam) build_line_chunk() []u8 {
+	ver := u32(0)
+	mut lines := []u8{}
+	for i, l in b.lines {
+		if i == 0 {
+			lines << encode_int(Tag.tag_i, l[1])
+		} else {
+			lines << encode_int(Tag.tag_a, l[0])
+			lines << encode_int(Tag.tag_i, l[1])
+		}
+	}
+	fnames := []u8{}
+	num_lines_instr := u32(b.num_lines)
+	num_lines := u32(b.lines.len)
+	num_fnames := u32(fnames.len)
+	mut content := []u8{}
+	content << u32_to_byte(ver)
+	content << u32_to_byte(line_bits(false))
+	content << u32_to_byte(num_lines_instr)
+	content << u32_to_byte(num_lines)
+	content << u32_to_byte(num_fnames)
+	content << lines
+	content << fnames
+	mut line_chunk := []u8{}
+	line_chunk << 'Line'.bytes()
+	line_chunk << u32_to_byte(u32(content.len))
+	line_chunk << content
+	return line_chunk
+}
+
+fn line_bits(exec_line bool) u32 {
+	return u32(0)
+}
+
+fn (b Beam) build_type_chunk() []u8 {
+	version := u32(3)
+	mut content := []u8{}
+	content << u32_to_byte(version)
+	content << u32_to_byte(u32(b.types.len / 2))
+	content << b.types
+	mut type_chunk := []u8{}
+	type_chunk << 'Type'.bytes()
+	type_chunk << u32_to_byte(u32(content.len))
+	type_chunk << content
+	type_chunk << pad(content.len)
+	return type_chunk
+}
+
+enum Features {
+	maybe_expr
+}
+
+fn (b Beam) build_meta_chunk() []u8 {
+	return [u8(77), 101, 116, 97, 0, 0, 0, 45, 131, 108, 0, 0, 0, 1, 104, 2, 119, 16, 101, 110,
+		97, 98, 108, 101, 100, 95, 102, 101, 97, 116, 117, 114, 101, 115, 108, 0, 0, 0, 1, 119,
+		10, 109, 97, 121, 98, 101, 95, 101, 120, 112, 114, 106, 106]
+}
+
+fn (b Beam) build_attr_chunk() []u8 {
+	return []u8{}
+}
+
+fn (b Beam) build_dbgi_chunk() []u8 {
+	return [u8(131), 108, 0, 0, 0, 1, 104, 2, 119, 16, 101, 110, 97, 98, 108, 101, 100, 95, 102,
+		101, 97, 116, 117, 114, 101, 115, 108, 0, 0, 0, 1, 119, 10, 109, 97, 121, 98, 101, 95,
+		101, 120, 112, 114, 106, 106, 0, 0, 0]
+}
+
+fn (b Beam) compact_term_encoding() []u8 {
+	//           	| 0 0 0 - Literal
+	//           	| 0 0 1 - Integer
+	//           	| 0 1 0 - Atom
+	// 			 			| 0 1 1 - X Register
+	// 			 			| 1 0 0 - Y Register
+	// 			 			| 1 0 1 - label
+	// 			 			| 1 1 0 - Character
+	// 	0 0 0 1 0 | 1 1 1 — Extended — Float
+	// 	0 0 1 0 0 | 1 1 1 — Extended — List
+	// 	0 0 1 1 0 | 1 1 1 — Extended — Floating point register
+	// 	0 1 0 0 0 | 1 1 1 — Extended — Allocation list
+	// 	0 1 0 1 0 | 1 1 1 — Extended — Literal
+	// println(c)
+
+	return []u8{}
+}
