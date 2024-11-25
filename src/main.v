@@ -46,7 +46,7 @@ fn prepare(path string) {
 	}
 	elapsed := time.since(start)
 	// println(compiler.nodes.to_str(0))
-	compiler.to_beam() or {
+	compiler.beam_to_file() or {
 		println(err.msg())
 		println('error on compile beam')
 		exit(1)

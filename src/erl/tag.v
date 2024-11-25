@@ -1,0 +1,35 @@
+module erl
+
+const tag_version = 131 // OK
+const tag_compressed_zlib = 80
+const tag_new_float_ext = 70 // OK
+const tag_bit_binary_ext = 77 // OK
+const tag_atom_cache_ref = 78
+const tag_new_pid_ext = 88
+const tag_new_port_ext = 89
+const tag_newer_reference_ext = 90
+const tag_small_integer_ext = 97 // OK
+const tag_integer_ext = 98 // OK
+const tag_float_ext = 99 // OK
+const tag_atom_ext = 100 // OK
+const tag_reference_ext = 101
+const tag_port_ext = 102
+const tag_pid_ext = 103
+const tag_small_tuple_ext = 104
+const tag_large_tuple_ext = 105
+const tag_nil_ext = 106 // OK
+const tag_string_ext = 107 // OK
+const tag_list_ext = 108
+const tag_binary_ext = 109 // OK
+const tag_small_big_ext = 110 // OK
+const tag_large_big_ext = 111 // OK
+const tag_new_fun_ext = 112
+const tag_export_ext = 113
+const tag_new_reference_ext = 114
+const tag_small_atom_ext = 115 // OK
+const tag_map_ext = 116
+const tag_fun_ext = 117
+const tag_atom_utf8_ext = 118 // OK
+const tag_small_atom_utf8_ext = 119 // OK
+const tag_v4_port_ext = 120
+const tag_local_ext = 121

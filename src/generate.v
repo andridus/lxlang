@@ -1,5 +1,9 @@
 // import compress.zlib
 import crypto.md5
+import math.big
+import erl
+
+const compile_version = '8.5.2'
 
 struct Beam {
 mut:
@@ -397,7 +401,16 @@ fn (mut c Compiler) function_body(func_node NodeEl) []BeamInstruction {
 	return instructions
 }
 
+struct CompileInfo {
+	source     string
+	options    []string
+	attributes []string
+}
+
 fn (mut c Compiler) to_beam() ![]u8 {
+	compile_info := CompileInfo{
+		source: 'A.lx'
+	}
 	beam := c.to_generate()!
 	// base otp 22
 	mut chunks := map[string]Chunk{}
@@ -409,22 +422,50 @@ fn (mut c Compiler) to_beam() ![]u8 {
 	chunks['StrT'] = beam.build_str_chunk(c) // StrT
 	chunks['Line'] = beam.build_line_chunk() // Line
 	chunks['Type'] = beam.build_type_chunk() // Type
-	chunks['Meta'] = beam.build_meta_chunk() // Meta
+	chunks['Meta'] = beam.build_meta_chunk()! // Meta
 	chunks['FunT'] = beam.build_lambda_chunk() // FunT
 	chunks['LitT'] = beam.build_literal_chunk() // LitT
-	// chunks['Attr'] = c.build_attr_chunk() // Attr
-	// chunks['Dbgi'] = c.build_dbgi_chunk() // Dbgi
+	chunks['Dbgi'] = beam.build_dbgi_chunk()! // Dbgi
+
 	mut essentials := []u8{}
+	mut chunks0 := []u8{}
 	essential_tags := ['AtU8', 'Code', 'StrT', 'ImpT', 'ExpT', 'FunT', 'LitT', 'Meta']
 	for tag in essential_tags {
 		if chunk := chunks[tag] {
+			if chunk.size == 0 && tag in ['FunT', 'LitT', 'Meta'] {
+				continue
+			}
+			chunks0 << chunk.tag.bytes()
+			chunks0 << u32_to_byte(chunk.size)
+			chunks0 << chunk.data
+			chunks0 << chunk.padding
 			essentials << chunk.data
 		}
 	}
 	digest := md5.sum(essentials)
-	// println(chunks)
-	println(digest)
-	return []u8{}
+	// finalize fun_table -- empty now
+	chunks['Attr'] = beam.build_attr_chunk(digest)! // Attr
+	chunks['CInf'] = beam.build_compile_info_chunk(compile_info)! // CInf
+
+	plus_tags := ['LocT', 'Attr', 'CInf', 'Dbgi', 'Line', 'Type']
+	for tag in plus_tags {
+		if chunk := chunks[tag] {
+			chunks0 << chunk.tag.bytes()
+			chunks0 << u32_to_byte(chunk.size)
+			chunks0 << chunk.data
+			chunks0 << chunk.padding
+		}
+	}
+	if chunks0.len % 4 == 0 {
+		mut chunks1 := []u8{}
+		chunks1 << 'FOR1'.bytes()
+		chunks1 << u32_to_byte(u32(chunks0.len + 4))
+		chunks1 << 'BEAM'.bytes()
+		chunks1 << chunks0
+		return chunks1
+	} else {
+		return error('incorrect padding')
+	}
 }
 
 fn pad(num int) []u8 {
@@ -628,10 +669,16 @@ enum Features {
 	maybe_expr
 }
 
-fn (b Beam) build_meta_chunk() Chunk {
-	content := [u8(131), 108, 0, 0, 0, 1, 104, 2, 119, 16, 101, 110, 97, 98, 108, 101, 100, 95,
-		102, 101, 97, 116, 117, 114, 101, 115, 108, 0, 0, 0, 1, 119, 10, 109, 97, 121, 98, 101,
-		95, 101, 120, 112, 114, 106, 106]
+fn (b Beam) build_meta_chunk() !Chunk {
+	content := erl.List.new([
+		erl.Tuple.new([
+			erl.Atom.new('enabled_features'),
+			erl.List.new([
+				erl.Atom.new('maybe_expr'),
+			]),
+		]),
+	]).bytes(false)!
+
 	return Chunk{
 		tag:     'Meta'
 		size:    u32(content.len)
@@ -640,19 +687,59 @@ fn (b Beam) build_meta_chunk() Chunk {
 	}
 }
 
-fn (b Beam) build_attr_chunk() Chunk {
+fn (b Beam) build_attr_chunk(digest []u8) !Chunk {
+	version := big.integer_from_bytes(digest)
+	content := erl.List.new([
+		erl.Tuple.new([
+			erl.Atom.new('vsn'),
+			erl.List.new([
+				erl.Term(version),
+			]),
+		]),
+	]).bytes(false)!
+
 	return Chunk{
 		tag:     'Attr'
-		size:    u32(0)
-		data:    []
-		padding: pad(0)
+		size:    u32(content.len)
+		data:    content
+		padding: pad(content.len)
 	}
 }
 
-fn (b Beam) build_dbgi_chunk() Chunk {
-	content := [u8(131), 108, 0, 0, 0, 1, 104, 2, 119, 16, 101, 110, 97, 98, 108, 101, 100, 95,
-		102, 101, 97, 116, 117, 114, 101, 115, 108, 0, 0, 0, 1, 119, 10, 109, 97, 121, 98, 101,
-		95, 101, 120, 112, 114, 106, 106]
+fn (b Beam) build_compile_info_chunk(compile_info CompileInfo) !Chunk {
+	content := erl.List.new([
+		erl.Tuple.new([
+			erl.Atom.new('version'),
+			erl.Term(compile_version),
+		]),
+		erl.Tuple.new([
+			erl.Atom.new('options'),
+			erl.List.new([]),
+		]),
+		erl.Tuple.new([
+			erl.Atom.new('source'),
+			erl.Term('/home/helder/otp/A.erl'),
+		]),
+	]).bytes(false)!
+
+	return Chunk{
+		tag:     'CInf'
+		size:    u32(content.len)
+		data:    content
+		padding: pad(content.len)
+	}
+}
+
+fn (b Beam) build_dbgi_chunk() !Chunk {
+	content := erl.Tuple.new([
+		erl.Atom.new('debug_info_v1'),
+		erl.Atom.new('erl_abstract_code'),
+		erl.Tuple.new([
+			erl.Atom.new('none'),
+			erl.List.new([]),
+		]),
+	]).bytes(false)!
+
 	return Chunk{
 		tag:     'Dbgi'
 		size:    u32(content.len)

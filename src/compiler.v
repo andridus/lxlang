@@ -1,3 +1,5 @@
+import os
+
 const c_nil = NodeEl(TokenRef{
 	token: .nil
 })
@@ -77,6 +79,19 @@ struct Arg {
 mut:
 	type       int
 	match_expr int // pointer to match exprs
+}
+
+fn (mut c Compiler) beam_to_file() ! {
+	module_name := c.get_module_name()!
+	beam_bytes := c.to_beam()!
+	os.write_file_array('${module_name}.beam', beam_bytes)!
+}
+
+fn (c Compiler) get_module_name() !string {
+	if name := c.get_ident_value(c.module_name) {
+		return name
+	}
+	return error('no module name defined')
 }
 
 fn (c Compiler) get_function_value(t TokenRef) ?Function {
