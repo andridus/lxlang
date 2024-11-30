@@ -426,7 +426,7 @@ fn (mut c Compiler) to_beam() ![]u8 {
 	chunks['Meta'] = beam.build_meta_chunk()! // Meta
 	chunks['FunT'] = beam.build_lambda_chunk() // FunT
 	chunks['LitT'] = beam.build_literal_chunk() // LitT
-	chunks['Dbgi'] = beam.build_dbgi_chunk()! // Dbgi
+	chunks['Dbgi'] = beam.build_dbgi_chunk(c)! // Dbgi
 	chunks['Docs'] = beam.build_docs_chunk(c)! // Docs
 	// chunks['ExCk'] = beam.build_dbgi_chunk()! // Dbgi
 	mut essentials := []u8{}
@@ -732,7 +732,41 @@ fn (b Beam) build_compile_info_chunk(compile_info CompileInfo) !Chunk {
 	}
 }
 
-fn (b Beam) build_dbgi_chunk() !Chunk {
+fn (b Beam) build_dbgi_chunk(c Compiler) !Chunk {
+	mut functions_type := []erl.Term{}
+	for func in c.functions {
+		if type0 := c.types[func.returns] {
+			functions_type << erl.Tuple.new([
+				erl.Atom.new('attribute'),
+				erl.Term(7),
+				erl.Atom.new('spec'),
+				erl.Tuple.new([
+					erl.Tuple.new([erl.Atom.new(func.name), erl.Term(0)]),
+					erl.List.new([
+						erl.Tuple.new([
+							erl.Atom.new('type'),
+							erl.Tuple.new([erl.Term(7), erl.Term(9)]),
+							erl.Atom.new('fun'),
+							erl.List.new([
+								erl.Tuple.new([
+									erl.Atom.new('type'),
+									erl.Tuple.new([erl.Term(7), erl.Term(9)]),
+									erl.Atom.new('product'),
+									erl.List.new([]),
+								]),
+								erl.Tuple.new([
+									erl.Atom.new('type'),
+									erl.Tuple.new([erl.Term(7), erl.Term(16)]),
+									erl.Atom.new(type0),
+									erl.List.new([]),
+								]),
+							]),
+						]),
+					]),
+				]),
+			])
+		}
+	}
 	content := erl.Tuple.new([
 		erl.Atom.new('debug_info_v1'),
 		erl.Atom.new('elixir_erl'),
@@ -754,37 +788,7 @@ fn (b Beam) build_dbgi_chunk() !Chunk {
 				'impls':             erl.List.new([])
 				'relative_file':     erl.Binary.new('a.ex') // to fix
 			}),
-			erl.List.new([
-				erl.Tuple.new([
-					erl.Atom.new('attribute'),
-					erl.Term(7),
-					erl.Atom.new('spec'),
-					erl.Tuple.new([
-						erl.Tuple.new([erl.Atom.new('a'), erl.Term(0)]),
-						erl.List.new([
-							erl.Tuple.new([
-								erl.Atom.new('type'),
-								erl.Tuple.new([erl.Term(7), erl.Term(9)]),
-								erl.Atom.new('fun'),
-								erl.List.new([
-									erl.Tuple.new([
-										erl.Atom.new('type'),
-										erl.Tuple.new([erl.Term(7), erl.Term(9)]),
-										erl.Atom.new('product'),
-										erl.List.new([]),
-									]),
-									erl.Tuple.new([
-										erl.Atom.new('type'),
-										erl.Tuple.new([erl.Term(7), erl.Term(16)]),
-										erl.Atom.new('integer'),
-										erl.List.new([]),
-									]),
-								]),
-							]),
-						]),
-					]),
-				]),
-			]),
+			erl.List.new(functions_type),
 		]),
 	]).bytes(false)!
 

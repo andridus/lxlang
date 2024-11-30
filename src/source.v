@@ -27,16 +27,18 @@ fn (s Source) peak_eof() bool {
 	return s.i + 1 >= s.total - 1
 }
 
-fn (mut s Source) advance_multi() {
+fn (mut s Source) advance_multi() bool {
 	len1 := s.total - s.i
 	if len1 > 3 && s.src[s.i..(s.i + 3)] == [u8(34), 34, 34] {
 		s.i += 2
+		return true
 	}
+	return false
 }
 
 fn (mut s Source) get_next_string() !string {
 	if is_string_delimiter(s.current) {
-		s.advance_multi()
+		is_mult := s.advance_multi()
 
 		mut bin := []u8{}
 		for !s.eof() {
@@ -49,7 +51,11 @@ fn (mut s Source) get_next_string() !string {
 				bin << s.current
 			}
 		}
-		return bin.bytestr()
+		if is_mult {
+			return bin.bytestr().trim_space()
+		} else {
+			return bin.bytestr()
+		}
 	}
 	return error('not a string')
 }

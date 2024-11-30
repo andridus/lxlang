@@ -18,6 +18,7 @@ mut:
 	floats                  []f64
 	idents                  []string
 	types                   []string
+	types0                  map[string]NodeEl
 	exports                 []string
 	attributes              []string
 	functions               []Function
@@ -224,7 +225,7 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 				}
 			}
 			token1 := c.parse_next_token()!
-			// c.tokens << token1
+
 			if token1.token == .typespec {
 				token2 := c.parse_next_token()!
 				if token2.token == .ident {

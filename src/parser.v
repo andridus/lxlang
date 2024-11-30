@@ -74,6 +74,8 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 			match tk {
 				.typespec {
 					c.match_next(.ident)!
+					c.put_returns_into_function(function_name.idx)!
+					c.next_token()
 				}
 				.rpar {
 					// parse args`
@@ -133,19 +135,38 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 									n_right0_left := n_right0.left as TokenRef
 									if function := c.get_function_value(n_right0_left) {
 										c.function_doc[function.name] = docstr
+										return node0
+									} else {
+										return error('not found function')
 									}
 								}
 							}
-							return node0
 						}
+
 						println('error not found function')
 					}
 					'spec' {
-						token := c.current_token
 						c.match_next(.ident)!
-						// if moduledoc := c.get_string_value(c.current_token) {
-						// 	c.moduledoc = moduledoc
-						// }
+						if atom := c.get_ident_value(c.current_token) {
+							if function_idx := c.functions_idx[atom] {
+								c.match_next(.typespec)!
+								c.next_token()
+								ret := c.parse_script()!
+								if ret is TokenRef && ret.token == .ident {
+									if ident0 := c.idents[ret.idx] {
+										mut type_idx := c.types.len
+										type_idx0 := c.types.index(ident0)
+										if type_idx0 != -1 {
+											type_idx = type_idx0
+										} else {
+											c.types << ident0
+										}
+										c.functions[function_idx].returns = type_idx
+									}
+								}
+							}
+						}
+						token := c.current_token
 						return NodeEl(token)
 					}
 					else {
@@ -160,6 +181,18 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 				}
 			}
 		}
+		else {
+			return c.parse_script()!
+		}
+	}
+	return error('unhandled this error')
+}
+
+fn (mut c Compiler) parse_script() !NodeEl {
+	match c.current_token.token {
+		.ident {
+			return NodeEl(c.current_token)
+		}
 		.float {}
 		.integer {
 			return NodeEl(c.current_token)
@@ -167,7 +200,7 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 		.caller_function {}
 		else {}
 	}
-	return error('finish')
+	return error('finish parse script in token ${c.current_token.token}  ')
 }
 
 fn into_block(elems []NodeEl) NodeEl {
@@ -180,5 +213,18 @@ fn into_block(elems []NodeEl) NodeEl {
 			}
 			right: elems
 		})
+	}
+}
+
+fn (mut c Compiler) put_returns_into_function(function_idx int) ! {
+	if atom := c.get_ident_value(c.current_token) {
+		mut type_idx := c.types.len
+		type_idx0 := c.types.index(atom)
+		if type_idx0 != -1 {
+			type_idx = type_idx0
+		} else {
+			c.types << atom
+		}
+		c.functions[function_idx].returns = type_idx
 	}
 }
