@@ -9,7 +9,11 @@ mut:
 	source                  Source
 	filesource              string
 	module_name             TokenRef
+	moduledoc               string
+	function_doc            map[string]string
+	function_attrs          map[string][]NodeEl
 	binaries                []string
+	ignored_strings         []string
 	integers                []int
 	floats                  []f64
 	idents                  []string
@@ -107,6 +111,19 @@ fn (c Compiler) get_ident_value(t TokenRef) ?string {
 	if t.table == .idents {
 		if ident := c.idents[t.idx] {
 			return ident
+		}
+	}
+	return none
+}
+
+fn (c Compiler) get_string_value(t TokenRef) ?string {
+	if t.table == .binary {
+		if str := c.binaries[t.idx] {
+			return str
+		}
+	} else if t.table == .ignored_strings {
+		if str := c.ignored_strings[t.idx] {
+			return str
 		}
 	}
 	return none
@@ -239,6 +256,11 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 				token: .rpar
 			}
 		}
+		c.source.current == `@` {
+			return TokenRef{
+				token: .arroba
+			}
+		}
 		c.source.current == `{` {
 			return TokenRef{
 				token: .lcbr
@@ -315,7 +337,7 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 			match token {
 				.module_name {
 					table = .idents
-					idx0 := c.idents.index(ident)
+					idx0 := c.idents.index('\'${ident}\'')
 					if idx0 != -1 {
 						idx = idx0
 					} else {
@@ -367,7 +389,7 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 							function_idx: idx0
 						}
 					} else {
-						println('undefined function')
+						println('undefined function ${ident}')
 					}
 				}
 				.do {
@@ -407,19 +429,41 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 			}
 		}
 		is_string_delimiter(c.source.current) {
-			str := c.source.get_next_string()!
-			mut idx := c.binaries.len
-			idx0 := c.binaries.index(str)
-			if idx0 != -1 {
-				idx = idx0
-			} else {
-				idx = c.integers.len
-				c.binaries << str
+			mut table := TableEnum.binary
+			if c.token_before.token == .ident {
+				if c.tokens.len > 1 && c.tokens[c.tokens.len - 2].token == .arroba {
+					table = .ignored_strings
+				}
 			}
-			return TokenRef{
-				idx:   idx
-				table: .binary
-				token: .string
+			str := c.source.get_next_string()!
+			if table == TableEnum.binary {
+				mut idx := c.binaries.len
+				idx0 := c.binaries.index(str)
+				if idx0 != -1 {
+					idx = idx0
+				} else {
+					idx = c.binaries.len
+					c.binaries << str
+				}
+				return TokenRef{
+					idx:   idx
+					table: .binary
+					token: .string
+				}
+			} else if table == TableEnum.ignored_strings {
+				mut idx := c.ignored_strings.len
+				idx0 := c.ignored_strings.index(str)
+				if idx0 != -1 {
+					idx = idx0
+				} else {
+					idx = c.ignored_strings.len
+					c.ignored_strings << str
+				}
+				return TokenRef{
+					idx:   idx
+					table: .ignored_strings
+					token: .string
+				}
 			}
 		}
 		is_digit(c.source.current) {

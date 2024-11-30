@@ -35,8 +35,11 @@ fn (t Token) str() string {
 		.operator { '${c(.cyan, .default, 'operator')}' }
 		.function_name { '${c(.cyan, .default, 'function_name')}' }
 		.caller_function { '${c(.cyan, .default, 'caller_function')}' }
+		.attrib { '${c(.dark_yellow, .default, '@')}' }
+		.moduledoc { '${c(.dark_yellow, .default, 'moduledoc')}' }
 		.__aliases__ { '${c(.cyan, .default, '__aliases__')}' }
 		.__block__ { '${c(.cyan, .default, '__block__')}' }
+		.ignore { '' }
 	}
 }
 

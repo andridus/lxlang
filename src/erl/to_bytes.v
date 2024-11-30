@@ -37,6 +37,9 @@ pub fn (t Term) bytes(deep bool) ![]u8 {
 		Binary {
 			binary_to_bytes(t as Binary)!
 		}
+		Map {
+			map_to_bytes(t as Map)!
+		}
 		// Charlist {}
 		Nil {
 			nil_to_bytes()
@@ -228,5 +231,19 @@ fn list_to_bytes(list List) ![]u8 {
 		}
 	}
 	buf << nil_to_bytes()
+	return buf
+}
+
+fn map_to_bytes(m Map) ![]u8 {
+	size := m.val.len
+	mut buf := []u8{}
+	if size > 0 {
+		buf << u8(tag_map_ext)
+		buf << binary.big_endian_get_u32(u32(size))
+		for key, value in m.val {
+			buf << Binary.new(key).bytes(true)!
+			buf << value.bytes(true)!
+		}
+	}
 	return buf
 }

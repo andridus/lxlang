@@ -1,5 +1,7 @@
-defmodule A do
-	def a do
-		2
-	end
+defmodule Elixir.A do
+  @moduledoc """Documentation for A"""
+  @doc """Something for a function"""
+  def a do
+    2
+  end
 end

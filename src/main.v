@@ -38,14 +38,14 @@ fn prepare(path string) {
 	}
 	if compiler.tokens.len > 0 {
 		node := compiler.parse_stmt() or {
-			println('error')
+			println('error ')
 			println(err.msg())
 			exit(1)
 		}
 		compiler.nodes = node
 	}
 	elapsed := time.since(start)
-	// println(compiler.nodes.to_str(0))
+	println(compiler.nodes.to_str(0))
 	compiler.beam_to_file() or {
 		println(err.msg())
 		println('error on compile beam')

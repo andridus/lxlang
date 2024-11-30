@@ -97,6 +97,69 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 				right: right
 			}
 		}
+		.arroba {
+			c.match_next(.ident)!
+			if attribute := c.get_ident_value(c.current_token) {
+				match attribute {
+					'moduledoc' {
+						token := c.current_token
+						c.match_next(.string)!
+						if moduledoc := c.get_string_value(c.current_token) {
+							c.moduledoc = moduledoc
+							return NodeEl(Node{
+								left:  TokenRef{
+									token: .moduledoc
+								}
+								right: [NodeEl(token), c.current_token]
+							})
+						}
+					}
+					'doc' {
+						mut docstr := ''
+						c.match_next(.string)!
+						if doc := c.get_string_value(c.current_token) {
+							docstr = doc
+						}
+						mut next_not_is_function := true
+						for next_not_is_function {
+							node0 := c.parse_stmt()!
+							if node0 is Node {
+								n := node0 as Node
+								n_left := n.left as TokenRef
+								if n_left.token == .def {
+									next_not_is_function = true
+									n_right := n.right as []NodeEl
+									n_right0 := n_right[0] as Node
+									n_right0_left := n_right0.left as TokenRef
+									if function := c.get_function_value(n_right0_left) {
+										c.function_doc[function.name] = docstr
+									}
+								}
+							}
+							return node0
+						}
+						println('error not found function')
+					}
+					'spec' {
+						token := c.current_token
+						c.match_next(.ident)!
+						// if moduledoc := c.get_string_value(c.current_token) {
+						// 	c.moduledoc = moduledoc
+						// }
+						return NodeEl(token)
+					}
+					else {
+						// token := c.current_token
+						// c.match_next(.string)!
+						// if moduledoc := c.get_string_value(c.current_token) {
+						// 	c.moduledoc = moduledoc
+						// 	return NodeEl(Node{left: TokenRef{token: .moduledoc}, right: [NodeEl(token), c.current_token]})
+						// }
+						println('not defined for other attribute')
+					}
+				}
+			}
+		}
 		.float {}
 		.integer {
 			return NodeEl(c.current_token)

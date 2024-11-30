@@ -375,6 +375,7 @@ fn (mut c Compiler) function_body(func_node NodeEl) []BeamInstruction {
 				.atoms {}
 				.binary {}
 				.idents {}
+				.ignored_strings {}
 				.integers {
 					if integer_value := c.get_integer_value(func_node) {
 						mut move := BeamInstruction{
@@ -409,7 +410,7 @@ struct CompileInfo {
 
 fn (mut c Compiler) to_beam() ![]u8 {
 	compile_info := CompileInfo{
-		source: 'A.lx'
+		source: 'test.lx'
 	}
 	beam := c.to_generate()!
 	// base otp 22
@@ -426,7 +427,8 @@ fn (mut c Compiler) to_beam() ![]u8 {
 	chunks['FunT'] = beam.build_lambda_chunk() // FunT
 	chunks['LitT'] = beam.build_literal_chunk() // LitT
 	chunks['Dbgi'] = beam.build_dbgi_chunk()! // Dbgi
-
+	chunks['Docs'] = beam.build_docs_chunk(c)! // Docs
+	// chunks['ExCk'] = beam.build_dbgi_chunk()! // Dbgi
 	mut essentials := []u8{}
 	mut chunks0 := []u8{}
 	essential_tags := ['AtU8', 'Code', 'StrT', 'ImpT', 'ExpT', 'FunT', 'LitT', 'Meta']
@@ -447,7 +449,7 @@ fn (mut c Compiler) to_beam() ![]u8 {
 	chunks['Attr'] = beam.build_attr_chunk(digest)! // Attr
 	chunks['CInf'] = beam.build_compile_info_chunk(compile_info)! // CInf
 
-	plus_tags := ['LocT', 'Attr', 'CInf', 'Dbgi', 'Line', 'Type']
+	plus_tags := ['LocT', 'Attr', 'CInf', 'Dbgi', 'Docs', 'Line', 'Type']
 	for tag in plus_tags {
 		if chunk := chunks[tag] {
 			chunks0 << chunk.tag.bytes()
@@ -733,15 +735,113 @@ fn (b Beam) build_compile_info_chunk(compile_info CompileInfo) !Chunk {
 fn (b Beam) build_dbgi_chunk() !Chunk {
 	content := erl.Tuple.new([
 		erl.Atom.new('debug_info_v1'),
-		erl.Atom.new('erl_abstract_code'),
+		erl.Atom.new('elixir_erl'),
 		erl.Tuple.new([
-			erl.Atom.new('none'),
-			erl.List.new([]),
+			erl.Atom.new('elixir_v1'),
+			erl.Map.new({
+				'attributes':        erl.List.new([])
+				'module':            erl.Binary.new('A')
+				'file':              erl.Binary.new('/home/helder/data/data/projs/elixir/a.ex')
+				'deprecated':        erl.List.new([])
+				'unreachable':       erl.List.new([])
+				'anno':              erl.Tuple.new([erl.Term(1), erl.Term(1)])
+				'struct':            erl.Nil.new()
+				'after_verify':      erl.List.new([])
+				'definitions':       erl.List.new([])
+				'compile_opts':      erl.List.new([])
+				'defines_behaviour': erl.Atom.new('false')
+				'signatures':        erl.Nil.new() // to fix
+				'impls':             erl.List.new([])
+				'relative_file':     erl.Binary.new('a.ex') // to fix
+			}),
+			erl.List.new([
+				erl.Tuple.new([
+					erl.Atom.new('attribute'),
+					erl.Term(7),
+					erl.Atom.new('spec'),
+					erl.Tuple.new([
+						erl.Tuple.new([erl.Atom.new('a'), erl.Term(0)]),
+						erl.List.new([
+							erl.Tuple.new([
+								erl.Atom.new('type'),
+								erl.Tuple.new([erl.Term(7), erl.Term(9)]),
+								erl.Atom.new('fun'),
+								erl.List.new([
+									erl.Tuple.new([
+										erl.Atom.new('type'),
+										erl.Tuple.new([erl.Term(7), erl.Term(9)]),
+										erl.Atom.new('product'),
+										erl.List.new([]),
+									]),
+									erl.Tuple.new([
+										erl.Atom.new('type'),
+										erl.Tuple.new([erl.Term(7), erl.Term(16)]),
+										erl.Atom.new('integer'),
+										erl.List.new([]),
+									]),
+								]),
+							]),
+						]),
+					]),
+				]),
+			]),
 		]),
 	]).bytes(false)!
 
 	return Chunk{
 		tag:     'Dbgi'
+		size:    u32(content.len)
+		data:    content
+		padding: pad(content.len)
+	}
+}
+
+fn (b Beam) build_docs_chunk(c Compiler) !Chunk {
+	line := 2
+	module_doc := erl.Map.new({
+		'en': erl.Binary.new(c.moduledoc)
+	})
+
+	module_meta := erl.Map.new({
+		'behaviours':   erl.List.new([])
+		'source_annos': erl.List.new([erl.Tuple.new([erl.Term(1), erl.Term(1)])])
+		'source_path':  erl.Term('/home/helder/data/data/projs/elixir/a.ex')
+	})
+
+	mut functions_doc := []erl.Term{}
+	for name, doc in c.function_doc {
+		functions_doc << erl.Tuple.new([
+			erl.Tuple.new([
+				erl.Atom.new('function'),
+				erl.Atom.new(name),
+				erl.Term(0),
+			]),
+			erl.Term(4),
+			erl.List.new([
+				erl.Binary.new('${name}()'),
+			]),
+			erl.Map.new({
+				'en': erl.Binary.new(doc)
+			}),
+			erl.Map.new({
+				'source_annos': erl.List.new([
+					erl.Tuple.new([erl.Term(8), erl.Term(7)]),
+				])
+			}),
+		])
+	}
+	content := erl.Tuple.new([
+		erl.Atom.new('docs_v1'),
+		erl.Term(line),
+		erl.Atom.new('elixir'),
+		erl.Binary.new('text/markdown'),
+		module_doc,
+		module_meta,
+		erl.List.new(functions_doc),
+	]).bytes(false)!
+
+	return Chunk{
+		tag:     'Docs'
 		size:    u32(content.len)
 		data:    content
 		padding: pad(content.len)
@@ -761,7 +861,6 @@ fn (b Beam) compact_term_encoding() []u8 {
 	// 	0 0 1 1 0 | 1 1 1 — Extended — Floating point register
 	// 	0 1 0 0 0 | 1 1 1 — Extended — Allocation list
 	// 	0 1 0 1 0 | 1 1 1 — Extended — Literal
-	// println(c)
 
 	return []u8{}
 }

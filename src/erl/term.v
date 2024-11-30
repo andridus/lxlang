@@ -16,11 +16,16 @@ type Term = bool
 	| Binary
 	| Charlist
 	| Nil
+	| Map
 
 struct Nil {}
 
 struct Atom {
 	val string
+}
+
+struct Map {
+	val map[string]Term
 }
 
 struct Tuple {
@@ -41,8 +46,12 @@ struct Charlist {
 	terms []rune
 }
 
-pub fn Atom.new(val string) Atom {
-	return Atom{val}
+pub fn Map.new(val map[string]Term) Term {
+	return Term(Map{val})
+}
+
+pub fn Atom.new(val string) Term {
+	return Term(Atom{val})
 }
 
 pub fn Tuple.new(terms []Term) Term {
