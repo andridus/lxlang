@@ -3,7 +3,6 @@ defmodule Elixir.A do
     Documentation for A
   """
 
-
   @doc """
     Something for a function
   """
@@ -16,4 +15,10 @@ defmodule Elixir.A do
   def b :: integer do
     1
   end
+
+
+  # def b(a :: __MODULE__) :: c do
+
+  # end
+
 end

@@ -157,6 +157,15 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 			c.source.next()
 			return c.parse_next_token_priv()
 		}
+		c.source.current == `#` {
+			mut i := c.source.i
+			for i < c.source.src.len && c.source.src[i] != `\n` {
+				i++
+			}
+			c.source.i = i - 1
+			c.source.next()
+			return c.parse_next_token_priv()
+		}
 		c.source.current == `(` && c.token_before.token == .function_name {
 			// add rpar
 			lpar := TokenRef{
