@@ -1,3 +1,5 @@
+module compiler
+
 pub enum Tag {
 	tag_u
 	tag_i

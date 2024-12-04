@@ -1,3 +1,5 @@
+module compiler
+
 struct Source {
 	src []u8
 mut:
@@ -5,6 +7,15 @@ mut:
 	total   int
 	current u8
 	peak    u8
+}
+
+pub fn Source.new(src []u8) Source {
+	return Source{
+		src:     src
+		total:   src.len
+		current: src[0]
+		peak:    src[1]
+	}
 }
 
 fn (mut s Source) next() {

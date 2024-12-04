@@ -13,12 +13,11 @@ defmodule Elixir.A do
 
   @doc """Something for b function"""
   def b :: integer do
-    1
+    2
   end
 
 
   # def b(a :: __MODULE__) :: c do
 
   # end
-
 end

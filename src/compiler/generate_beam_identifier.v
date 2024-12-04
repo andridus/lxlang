@@ -1,3 +1,5 @@
+module compiler
+
 enum Identifier {
 	x
 	y

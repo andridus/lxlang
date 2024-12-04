@@ -1,3 +1,5 @@
+module compiler
+
 fn (c Compiler) eof() bool {
 	return c.current_position >= c.tokens.len
 }

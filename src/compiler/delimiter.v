@@ -1,4 +1,4 @@
-module main
+module compiler
 
 pub fn is_string_delimiter(ch u8) bool {
 	return ch == `\"`

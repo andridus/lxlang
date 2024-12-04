@@ -1,6 +1,9 @@
 // import compress.zlib
+module compiler
+
 import crypto.md5
 import math.big
+import encoding.binary
 import erl
 
 const compile_version = '8.5.2'
@@ -234,7 +237,7 @@ fn encode_int(tag Tag, val int) []u8 {
 		c << u8(val & 0xff)
 		return c
 	} else {
-		return u32_to_byte(u32(val))
+		return binary.big_endian_get_u32(u32(val))
 	}
 }
 
@@ -438,7 +441,7 @@ fn (mut c Compiler) to_beam() ![]u8 {
 				continue
 			}
 			chunks0 << chunk.tag.bytes()
-			chunks0 << u32_to_byte(chunk.size)
+			chunks0 << binary.big_endian_get_u32(chunk.size)
 			chunks0 << chunk.data
 			chunks0 << chunk.padding
 			essentials << chunk.data
@@ -453,7 +456,7 @@ fn (mut c Compiler) to_beam() ![]u8 {
 	for tag in plus_tags {
 		if chunk := chunks[tag] {
 			chunks0 << chunk.tag.bytes()
-			chunks0 << u32_to_byte(chunk.size)
+			chunks0 << binary.big_endian_get_u32(chunk.size)
 			chunks0 << chunk.data
 			chunks0 << chunk.padding
 		}
@@ -461,7 +464,7 @@ fn (mut c Compiler) to_beam() ![]u8 {
 	if chunks0.len % 4 == 0 {
 		mut chunks1 := []u8{}
 		chunks1 << 'FOR1'.bytes()
-		chunks1 << u32_to_byte(u32(chunks0.len + 4))
+		chunks1 << binary.big_endian_get_u32(u32(chunks0.len + 4))
 		chunks1 << 'BEAM'.bytes()
 		chunks1 << chunks0
 		return chunks1
@@ -485,11 +488,11 @@ fn (b Beam) build_code_chunk() Chunk {
 	num_labels := u32(b.current_label)
 	num_functions := u32(b.functions.len)
 	mut content := []u8{}
-	content << u32_to_byte(u32(16))
-	content << u32_to_byte(format_number)
-	content << u32_to_byte(highest_opcode)
-	content << u32_to_byte(num_labels)
-	content << u32_to_byte(num_functions)
+	content << binary.big_endian_get_u32(u32(16))
+	content << binary.big_endian_get_u32(format_number)
+	content << binary.big_endian_get_u32(highest_opcode)
+	content << binary.big_endian_get_u32(num_labels)
+	content << binary.big_endian_get_u32(num_functions)
 	content << b.code
 	return Chunk{
 		tag:     'Code'
@@ -500,7 +503,7 @@ fn (b Beam) build_code_chunk() Chunk {
 }
 
 fn (b Beam) build_atom_chunk(c &Compiler) Chunk {
-	num_atoms := u32_to_byte(u32(c.idents.len))
+	num_atoms := binary.big_endian_get_u32(u32(c.idents.len))
 	mut atom_table := []u8{}
 	for i in c.idents {
 		// max length for atom is 255
@@ -520,11 +523,11 @@ fn (b Beam) build_atom_chunk(c &Compiler) Chunk {
 }
 
 fn (b Beam) build_imp_chunk() Chunk {
-	num_imports := u32_to_byte(u32(b.imports.len))
+	num_imports := binary.big_endian_get_u32(u32(b.imports.len))
 	mut imports_table := []u8{}
 	for imp_fun in b.imports {
 		for x in imp_fun {
-			imports_table << u32_to_byte(u32(x))
+			imports_table << binary.big_endian_get_u32(u32(x))
 		}
 	}
 	size := num_imports.len + imports_table.len
@@ -540,11 +543,11 @@ fn (b Beam) build_imp_chunk() Chunk {
 }
 
 fn (b Beam) build_exp_chunk() Chunk {
-	num_exports := u32_to_byte(u32(b.exports.len))
+	num_exports := binary.big_endian_get_u32(u32(b.exports.len))
 	mut exports_table := []u8{}
 	for exp_fun in b.exports {
 		for x in exp_fun {
-			exports_table << u32_to_byte(u32(x))
+			exports_table << binary.big_endian_get_u32(u32(x))
 		}
 	}
 	size := num_exports.len + exports_table.len
@@ -560,11 +563,11 @@ fn (b Beam) build_exp_chunk() Chunk {
 }
 
 fn (b Beam) build_loc_chunk() Chunk {
-	num_locals := u32_to_byte(u32(b.locals.len))
+	num_locals := binary.big_endian_get_u32(u32(b.locals.len))
 	mut locals_table := []u8{}
 	for loc_fun in b.locals {
 		for x in loc_fun {
-			locals_table << u32_to_byte(u32(x))
+			locals_table << binary.big_endian_get_u32(u32(x))
 		}
 	}
 	size := num_locals.len + locals_table.len
@@ -589,7 +592,7 @@ fn (b Beam) build_str_chunk(c &Compiler) Chunk {
 	size := num_string + str_table.len
 	mut content := []u8{}
 	if size > 0 {
-		content << u32_to_byte(num_string)
+		content << binary.big_endian_get_u32(num_string)
 		content << str_table
 	}
 	return Chunk{
@@ -634,11 +637,11 @@ fn (b Beam) build_line_chunk() Chunk {
 	num_lines := u32(b.lines.len)
 	num_fnames := u32(fnames.len)
 	mut content := []u8{}
-	content << u32_to_byte(ver)
-	content << u32_to_byte(line_bits(false))
-	content << u32_to_byte(num_lines_instr)
-	content << u32_to_byte(num_lines)
-	content << u32_to_byte(num_fnames)
+	content << binary.big_endian_get_u32(ver)
+	content << binary.big_endian_get_u32(line_bits(false))
+	content << binary.big_endian_get_u32(num_lines_instr)
+	content << binary.big_endian_get_u32(num_lines)
+	content << binary.big_endian_get_u32(num_fnames)
 	content << lines
 	content << fnames
 	return Chunk{
@@ -656,8 +659,8 @@ fn line_bits(exec_line bool) u32 {
 fn (b Beam) build_type_chunk() Chunk {
 	version := u32(3)
 	mut content := []u8{}
-	content << u32_to_byte(version)
-	content << u32_to_byte(u32(b.types.len / 2))
+	content << binary.big_endian_get_u32(version)
+	content << binary.big_endian_get_u32(u32(b.types.len / 2))
 	content << b.types
 	return Chunk{
 		tag:     'Type'
