@@ -26,7 +26,8 @@ mut:
 	code           []u8
 }
 
-struct Chunk {
+pub struct Chunk {
+pub:
 	tag     string
 	size    u32
 	data    []u8
@@ -411,7 +412,7 @@ struct CompileInfo {
 	attributes []string
 }
 
-fn (mut c Compiler) to_beam() ![]u8 {
+fn (mut c Compiler) to_chunks() !map[string]Chunk {
 	compile_info := CompileInfo{
 		source: 'test.lx'
 	}
@@ -432,18 +433,14 @@ fn (mut c Compiler) to_beam() ![]u8 {
 	chunks['Dbgi'] = beam.build_dbgi_chunk(c)! // Dbgi
 	chunks['Docs'] = beam.build_docs_chunk(c)! // Docs
 	// chunks['ExCk'] = beam.build_dbgi_chunk()! // Dbgi
+
 	mut essentials := []u8{}
-	mut chunks0 := []u8{}
 	essential_tags := ['AtU8', 'Code', 'StrT', 'ImpT', 'ExpT', 'FunT', 'LitT', 'Meta']
 	for tag in essential_tags {
 		if chunk := chunks[tag] {
 			if chunk.size == 0 && tag in ['FunT', 'LitT', 'Meta'] {
 				continue
 			}
-			chunks0 << chunk.tag.bytes()
-			chunks0 << binary.big_endian_get_u32(chunk.size)
-			chunks0 << chunk.data
-			chunks0 << chunk.padding
 			essentials << chunk.data
 		}
 	}
@@ -452,8 +449,16 @@ fn (mut c Compiler) to_beam() ![]u8 {
 	chunks['Attr'] = beam.build_attr_chunk(digest)! // Attr
 	chunks['CInf'] = beam.build_compile_info_chunk(compile_info)! // CInf
 
-	plus_tags := ['LocT', 'Attr', 'CInf', 'Dbgi', 'Docs', 'Line', 'Type']
-	for tag in plus_tags {
+	return chunks
+}
+
+fn (mut c Compiler) to_beam() ![]u8 {
+	chunks := c.to_chunks()!
+
+	mut chunks0 := []u8{}
+	tags := ['AtU8', 'Code', 'StrT', 'ImpT', 'ExpT', 'FunT', 'LitT', 'Meta', 'LocT', 'Attr', 'CInf',
+		'Dbgi', 'Docs', 'Line', 'Type']
+	for tag in tags {
 		if chunk := chunks[tag] {
 			chunks0 << chunk.tag.bytes()
 			chunks0 << binary.big_endian_get_u32(chunk.size)

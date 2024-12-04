@@ -1,0 +1,8 @@
+defmodule Elixir.A do
+  @doc """
+   Something for a
+  """
+  def a do
+    2
+  end
+end

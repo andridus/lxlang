@@ -67,9 +67,13 @@ pub fn Nil.new() Term {
 }
 
 pub fn Binary.new(bin string) Term {
-	size := bitfield.from_bytes([bin[bin.len - 1]]).get_size()
-	return Term(Binary{
-		bits:  u8(size)
-		value: bin.bytes()
-	})
+	if bin.len > 0 {
+		size := bitfield.from_bytes([bin[bin.len - 1]]).get_size()
+		return Term(Binary{
+			bits:  u8(size)
+			value: bin.bytes()
+		})
+	} else {
+		return Term(Binary{})
+	}
 }

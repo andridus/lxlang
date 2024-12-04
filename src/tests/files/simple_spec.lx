@@ -1,0 +1,7 @@
+defmodule Elixir.A do
+
+  @spec a :: integer
+  def a do
+    2
+  end
+end

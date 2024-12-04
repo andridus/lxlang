@@ -1,20 +1,15 @@
 defmodule Elixir.A do
-  @moduledoc """
-    Documentation for A
-  """
-
-  @doc """
-    Something for a function
-  """
   @spec a :: integer
   def a do
     2
   end
 
-  @doc """Something for b function"""
-  def b :: integer do
-    2
-  end
+  # @doc """
+  #   Something for b function
+  # """
+  # def b :: integer do
+  #   2
+  # end
 
 
   # def b(a :: __MODULE__) :: c do

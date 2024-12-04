@@ -1,11 +1,14 @@
 module compiler
 
+import time
+
 const c_nil = NodeEl(TokenRef{
 	token: .nil
 })
 
 struct Compiler {
 mut:
+	options                 CompilerOptions
 	source                  Source
 	filesource              string
 	module_name             TokenRef
@@ -42,6 +45,7 @@ mut:
 	current_token           TokenRef
 	peak_token              TokenRef
 	nodes                   NodeEl = c_nil
+	times                   map[string]time.Duration
 }
 
 struct Function {
