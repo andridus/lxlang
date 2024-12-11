@@ -231,7 +231,7 @@ fn encode_int(tag Tag, val int) []u8 {
 		// encode negative bytes
 		return []
 	} else if val < 16 {
-		return [u8(u32(val) << 4 | int(tag))]
+		return [u8(u32(val) << 4 | u32(tag))]
 	} else if val < 2048 {
 		mut c := []u8{}
 		c << [u8(((val >> 3) & 0b11100000) | int(tag) | 0b00001000)]
@@ -594,7 +594,7 @@ fn (b Beam) build_str_chunk(c &Compiler) Chunk {
 		str_table << u8(i.len)
 		str_table << i.bytes()
 	}
-	size := num_string + str_table.len
+	size := num_string + u32(str_table.len)
 	mut content := []u8{}
 	if size > 0 {
 		content << binary.big_endian_get_u32(num_string)
@@ -604,7 +604,7 @@ fn (b Beam) build_str_chunk(c &Compiler) Chunk {
 		tag:     'StrT'
 		size:    u32(size)
 		data:    content
-		padding: pad(size)
+		padding: pad(int(size))
 	}
 }
 

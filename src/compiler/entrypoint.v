@@ -26,7 +26,21 @@ pub fn Compiler.new(options CompilerOptions, path string) !Compiler {
 		source:       &source
 		filesource:   path
 		token_before: &TokenRef{}
-		types:        default_types
+		types:        default_types.clone()
+	}
+}
+
+pub fn Compiler.new_from_bytes(options CompilerOptions, path string, bytes []u8) !Compiler {
+	if bytes.len == 0 {
+		error('file isempty')
+	}
+	source := Source.new(bytes)
+	return Compiler{
+		options:      options
+		source:       &source
+		filesource:   path
+		token_before: &TokenRef{}
+		types:        default_types.clone()
 	}
 }
 

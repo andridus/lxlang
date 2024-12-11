@@ -1,7 +1,7 @@
 Module {
-	name: 'lxlang'
-	description: 'Lx lang'
+	name: 'lx'
+	description: 'Elixir compiler and language server'
 	version: '0.0.1'
-	license: 'MIT'
+	license: 'Apache 2.0'
 	dependencies: []
 }

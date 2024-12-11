@@ -6,7 +6,7 @@ const c_nil = NodeEl(TokenRef{
 	token: .nil
 })
 
-struct Compiler {
+pub struct Compiler {
 mut:
 	options                 CompilerOptions
 	source                  Source

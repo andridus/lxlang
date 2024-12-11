@@ -5,7 +5,7 @@ import math.big
 import encoding.binary
 
 pub fn (t Term) bytes(deep bool) ![]u8 {
-	term := match t {
+	mut term := match t {
 		bool {
 			bool_to_bytes(t as bool)
 		}
