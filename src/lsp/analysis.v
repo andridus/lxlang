@@ -34,7 +34,7 @@ fn (mut s State) update_document(document string, text string) {
 fn (mut s State) hover(hover_params HoverParams) HoverResult {
 	uri := hover_params.text_document.uri
 	// doc := s.documents[uri]
-	return HoverResult.new('File: ${uri}, total_bytes: ${gc_memory_use()/1024/1024} MB')
+	return HoverResult.new('File: ${uri}, total_bytes: ${gc_memory_use() / 1024 / 1024} MB')
 }
 
 fn (mut s State) go_to_definition(definition_params DefinitionParams) DefinitionResult {

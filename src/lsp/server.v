@@ -7,9 +7,9 @@ import io
 @[heap]
 pub struct Server {
 mut:
-	log     log.Log
-	procs   map[string]ProcFunc = map[string]ProcFunc{}
-	state   &State
+	log   log.Log
+	procs map[string]ProcFunc = map[string]ProcFunc{}
+	state &State
 pub mut:
 	stream io.ReaderWriter
 }

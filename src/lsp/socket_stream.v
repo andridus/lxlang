@@ -7,8 +7,8 @@ struct SocketStream {
 	log_label string = 'lxls-server'
 	log       bool   = true
 mut:
-	listener &net.TcpListener = unsafe{ nil}
-	streams []io.ReaderWriter
+	listener &net.TcpListener = unsafe { nil }
+	streams  []io.ReaderWriter
 pub mut:
 	port  int = 5007
 	debug bool
@@ -22,14 +22,19 @@ mut:
 
 fn SocketStream.new(port int) &SocketStream {
 	return &SocketStream{
-		port:   port
+		port: port
 	}
 }
 
-pub fn (stream SocketStream) write(buf []u8) !int { return 0}
-pub fn (stream SocketStream) read(mut buf []u8) !int {return 0}
+pub fn (stream SocketStream) write(buf []u8) !int {
+	return 0
+}
 
-fn listen (mut socket SocketStream) !&SocketChildStream {
+pub fn (stream SocketStream) read(mut buf []u8) !int {
+	return 0
+}
+
+fn listen(mut socket SocketStream) !&SocketChildStream {
 	if socket.listener == unsafe { nil } {
 		mut listener := net.listen_tcp(.ip, ':${socket.port}')!
 		socket.listener = listener
@@ -46,7 +51,7 @@ fn listen (mut socket SocketStream) !&SocketChildStream {
 	conn.set_blocking(true) or {}
 
 	stream := &SocketChildStream{
-		conn: conn
+		conn:   conn
 		reader: reader
 	}
 	socket.streams << stream
@@ -84,12 +89,11 @@ pub fn (mut stream SocketChildStream) read(mut buf []u8) !int {
 		for total_read < conlen {
 			bytes_read := stream.reader.read(mut rbody[total_read..]) or { return IError(io.Eof{}) }
 			if bytes_read == 0 {
-        return IError(io.Eof{})
-    	}
+				return IError(io.Eof{})
+			}
 			total_read += bytes_read
 		}
 		buf << rbody
-
 	}
 	return conlen + header_len
 }

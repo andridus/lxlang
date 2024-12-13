@@ -5,8 +5,8 @@ struct Source {
 mut:
 	i       int
 	total   int
-	line int = 1
-	char int
+	line    int = 1
+	char    int
 	current u8
 	peak    u8
 }

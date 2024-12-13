@@ -32,20 +32,21 @@ pub fn start(stdio bool) {
 	if srv.stream is SocketStream {
 		mut stream0 := srv.stream as SocketStream
 		for {
-			stream := listen(mut stream0) or { panic("ERROR ON LISTEN ${err.msg()}")}
+			stream := listen(mut stream0) or { panic('ERROR ON LISTEN ${err.msg()}') }
 			spawn handle_client(srv, stream, shared state)
 		}
 	} else {
 		handle_client(srv, srv.stream, shared state)
 	}
 }
+
 fn handle_client(srv Server, stream0 io.ReaderWriter, shared state State) {
 	mut stream := stream0
 	mut broken := 0
 	for {
-		if stream0 is SocketChildStream && broken > 10{
+		if stream0 is SocketChildStream && broken > 10 {
 			mut socket := stream as SocketChildStream
-			client_addr := socket.conn.peer_addr() or { exit(1)}
+			client_addr := socket.conn.peer_addr() or { exit(1) }
 			eprintln('> broken client: ${client_addr}')
 			socket.conn.close() or {}
 			break

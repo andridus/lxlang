@@ -6,10 +6,10 @@ import strings
 
 struct StdioStream {
 mut:
-	stdin  os.File = os.stdin()
-	stdout os.File = os.stdout()
-	req_buf strings.Builder     = strings.new_builder(4096)
-	res_buf strings.Builder     = strings.new_builder(4096)
+	stdin   os.File         = os.stdin()
+	stdout  os.File         = os.stdout()
+	req_buf strings.Builder = strings.new_builder(4096)
+	res_buf strings.Builder = strings.new_builder(4096)
 }
 
 pub fn (mut stream StdioStream) write(buf []u8) !int {
