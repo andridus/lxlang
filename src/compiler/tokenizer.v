@@ -256,11 +256,18 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 						c.functions_caller << &CallerFunction{
 							name:         ident
 							line:         c.current_line
+							char:         c.source.char - ident.len
 							starts:       c.tokens.len
 							function_idx: idx0
 						}
 					} else {
-						println('undefined function ${ident}')
+						c.functions_caller_undefined << &CallerFunction{
+							name:   ident
+							line:   c.source.line
+							char:   c.source.char - ident.len
+							starts: c.tokens.len
+							// function_idx: idx0
+						}
 					}
 				}
 				.do {
@@ -374,7 +381,11 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 			return error('TODO implements for bigint and integer64')
 		}
 		else {
-			return error('[${c.filesource}:${c.source.line}:${c.source.char}] Unexpected token ${[c.source.current]} [${[c.source.current].bytestr()}]')
+			println(c.functions_caller_undefined)
+			println(c.tokens)
+			return error('[${c.filesource}:${c.source.line}:${c.source.char}] Unexpected token ${[
+				c.source.current,
+			]} [${[c.source.current].bytestr()}]')
 		}
 	}
 }

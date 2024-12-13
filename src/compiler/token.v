@@ -18,6 +18,8 @@ enum Token {
 	nil
 	eof
 	ident
+	import
+	alias
 	string
 	lcbr
 	rcbr

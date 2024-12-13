@@ -104,7 +104,7 @@ fn operator_from_string(s string) Operator {
 	}
 }
 
-const keywords = ['defmodule', 'def', 'defp', 'end', 'do', 'defmacro', 'defmacrop']
+const keywords = ['defmodule', 'def', 'defp', 'end', 'do', 'defmacro', 'defmacrop', 'import', 'alias']
 const operators_1 = [`@`, `.`, `+`, `-`, `!`, `/`, `<`, `>`, `=`, `&`, `|`, `^`]
 const operators_2 = [
 	[`+`, `+`],

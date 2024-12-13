@@ -14,6 +14,8 @@ fn (t Token) str() string {
 		.eof { 'EOF' }
 		.ident { '${c(.white, .default, 'ident')}' }
 		.string { '${c(.green, .default, 'string')}' }
+		.import { '${c(.dark_yellow, .default, 'import')}' }
+		.alias { '${c(.dark_yellow, .default, 'alias')}' }
 		.lcbr { '${c(.white, .default, 'lcbr')}' }
 		.rcbr { '${c(.white, .default, 'rcbr')}' }
 		.lpar { '${c(.white, .default, 'lpar')}' }
@@ -27,10 +29,10 @@ fn (t Token) str() string {
 		.module_name { '${c(.red, .default, 'module_name')}' }
 		.integer { '${c(.orange, .default, 'integer')}' }
 		.float { '${c(.orange, .default, 'float')}' }
-		.do { '${c(.cyan, .default, 'do')}' }
-		.end { '${c(.cyan, .default, 'end')}' }
-		.defmodule { '${c(.cyan, .default, 'defmodule')}' }
-		.def { '${c(.cyan, .default, 'def')}' }
+		.do { '${c(.dark_yellow, .default, 'do')}' }
+		.end { '${c(.dark_yellow, .default, 'end')}' }
+		.defmodule { '${c(.dark_yellow, .default, 'defmodule')}' }
+		.def { '${c(.dark_yellow, .default, 'def')}' }
 		.defp { '${c(.cyan, .default, 'defp')}' }
 		.defmacro { '${c(.cyan, .default, 'defmacro')}' }
 		.defmacrop { '${c(.cyan, .default, 'defmacrop')}' }
