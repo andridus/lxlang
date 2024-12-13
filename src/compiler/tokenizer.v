@@ -374,7 +374,7 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 			return error('TODO implements for bigint and integer64')
 		}
 		else {
-			return error('Unexpected token ${[c.source.current].bytestr()}')
+			return error('[${c.filesource}:${c.source.line}:${c.source.char}] Unexpected token ${[c.source.current]} [${[c.source.current].bytestr()}]')
 		}
 	}
 }

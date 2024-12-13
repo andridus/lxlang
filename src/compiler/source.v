@@ -5,6 +5,8 @@ struct Source {
 mut:
 	i       int
 	total   int
+	line int = 1
+	char int
 	current u8
 	peak    u8
 }
@@ -22,6 +24,12 @@ fn (mut s Source) next() {
 	if s.i < s.total - 1 {
 		s.i++
 		s.current = s.src[s.i]
+		if s.current == `\n` {
+			s.line++
+			s.char = 0
+		} else {
+			s.char++
+		}
 		if s.i + 1 < s.total {
 			s.peak = s.src[s.i + 1]
 		} else {

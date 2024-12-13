@@ -2,7 +2,6 @@ module lsp
 
 import compiler
 
-@[heap]
 struct State {
 mut:
 	documents map[string]compiler.Compiler
@@ -16,10 +15,16 @@ fn (mut s State) open_document(path string, text string) {
 	options := compiler.CompilerOptions{
 		returns: .ast
 	}
-	s.documents[path] = compiler.Compiler.new_from_bytes(options, path, text.bytes()) or {
-		eprintln('Do not compile file ${err}')
+	mut c := compiler.Compiler.new_from_bytes(options, path, text.bytes()) or {
+		eprintln('Do not read file ${err}')
 		exit(1)
 	}
+	// _ := c.generate_beam() or {
+	// 	eprintln('Do not compile file ${err.msg()}')
+	// 	exit(1)
+	// }
+	s.documents[path] = c
+	eprintln(s.documents.len)
 }
 
 fn (mut s State) update_document(document string, text string) {
@@ -28,8 +33,8 @@ fn (mut s State) update_document(document string, text string) {
 
 fn (mut s State) hover(hover_params HoverParams) HoverResult {
 	uri := hover_params.text_document.uri
-	doc := s.documents[uri]
-	return HoverResult.new('File: ${uri}, total_bytes: ${sizeof(doc)}')
+	// doc := s.documents[uri]
+	return HoverResult.new('File: ${uri}, total_bytes: ${gc_memory_use()/1024/1024} MB')
 }
 
 fn (mut s State) go_to_definition(definition_params DefinitionParams) DefinitionResult {

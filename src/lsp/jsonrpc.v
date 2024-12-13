@@ -15,7 +15,7 @@ const server_error_end = -32600
 const server_not_initialized = -32002
 const unknown_error = -32001
 
-type ProcFunc = fn (mut srv Server, mut ctx Context) string
+type ProcFunc = fn (srv Server, mut ctx Context, shared state State) string
 
 pub struct Context {
 pub mut:

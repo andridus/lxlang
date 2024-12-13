@@ -3,30 +3,23 @@ module lsp
 import json
 import log
 import io
-import strings
 
 @[heap]
 pub struct Server {
 mut:
-	req_buf strings.Builder     = strings.new_builder(4096)
-	res_buf strings.Builder     = strings.new_builder(4096)
-	procs   map[string]ProcFunc = map[string]ProcFunc{}
 	log     log.Log
+	procs   map[string]ProcFunc = map[string]ProcFunc{}
 	state   &State
 pub mut:
 	stream io.ReaderWriter
 }
 
-pub fn Server.new(l log.Log, state &State, stdio bool) Server {
+pub fn Server.new(l log.Log, shared state State, stdio bool) Server {
 	stream := if stdio {
 		io.ReaderWriter(&StdioStream{})
 	} else {
-		io.ReaderWriter(SocketStream.new(3625) or {
-			eprintln('can´t initialize socket')
-			exit(1)
-		})
+		io.ReaderWriter(SocketStream.new(3625))
 	}
-
 	return Server{
 		procs:  map[string]ProcFunc{}
 		log:    l
@@ -35,7 +28,7 @@ pub fn Server.new(l log.Log, state &State, stdio bool) Server {
 	}
 }
 
-pub fn (mut srv Server) exec(incoming string) !Response {
+pub fn (srv Server) exec(incoming string, shared state State) !Response {
 	vals := incoming.split_into_lines()
 	if vals.len < 3 {
 		return error('nothing')
@@ -57,12 +50,13 @@ pub fn (mut srv Server) exec(incoming string) !Response {
 
 	mut ctx := Context{res, req}
 
+	eprintln('[${req.id}] received method `${req.method}`')
 	if req.method in srv.procs.keys() {
 		proc := srv.procs[req.method]
-		res.result = proc(mut srv, mut ctx)
+		res.result = proc(srv, mut ctx, shared state)
 	} else {
 		method_nf := method_not_found
-		srv.log.error('method `${req.method}` not found')
+		eprintln('[ERROR] method `${req.method}` not found')
 		return error(method_nf.str())
 	}
 	return res
