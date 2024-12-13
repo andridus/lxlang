@@ -50,6 +50,7 @@ fn (mut s Source) advance_multi() bool {
 	len1 := s.total - s.i
 	if len1 > 3 && s.src[s.i..(s.i + 3)] == [u8(34), 34, 34] {
 		s.i += 2
+		s.char += 2
 		return true
 	}
 	return false
@@ -63,9 +64,16 @@ fn (mut s Source) get_next_string() !string {
 		for !s.eof() {
 			s.next()
 			if is_string_delimiter(s.current) {
-				s.advance_multi()
-				s.next()
-				break
+				if is_mult && s.advance_multi() {
+					s.next()
+					break
+				} else if is_mult {
+					bin << s.current
+				} else {
+					bin << s.current
+					s.next()
+					break
+				}
 			} else {
 				bin << s.current
 			}

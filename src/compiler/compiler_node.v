@@ -14,9 +14,11 @@ struct Node {
 }
 
 struct TokenRef {
-	token Token
-	idx   int
-	table TableEnum
+	token    Token
+	idx      int
+	table    TableEnum
+	pos_line int
+	pos_char int
 }
 
 fn (t TokenRef) to_node() NodeEl {

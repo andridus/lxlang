@@ -23,6 +23,9 @@ mut:
 	types                      []string
 	types0                     map[string]NodeEl
 	exports                    []string
+	imports                    []Import
+	aliases                    []Alias
+	constants                  []Const
 	attributes                 []string
 	functions                  []Function
 	functions_body             map[int]NodeEl
@@ -74,6 +77,21 @@ mut:
 
 fn (cf CallerFunction) str() string {
 	return '${cf.name}/${cf.args.len} (LOC: ${cf.line}:${cf.char})'
+}
+
+struct Import {
+	token TokenRef
+	args  []NodeEl
+}
+
+struct Const {
+	token TokenRef
+	value NodeEl
+}
+
+struct Alias {
+	token TokenRef
+	args  []NodeEl
 }
 
 struct Arg {

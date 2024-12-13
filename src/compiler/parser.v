@@ -67,6 +67,36 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 					]]
 			}
 		}
+		.import {
+			c.match_next(.module_name)!
+			token := c.current_token
+			mut args := []NodeEl{}
+			for c.peak_token.token == .comma {
+				c.next_token()
+				c.next_token() // fix this double caller
+				args << c.parse_script()!
+			}
+			c.imports << Import{
+				token: token
+				args:  args
+			}
+			return c.parse_stmt()!
+		}
+		.alias {
+			c.match_next(.module_name)!
+			token := c.current_token
+			mut args := []NodeEl{}
+			for c.peak_token.token == .comma {
+				c.next_token()
+				c.next_token() // fix this double caller
+				args << c.parse_script()!
+			}
+			c.aliases << Alias{
+				token: token
+				args:  args
+			}
+			return c.parse_stmt()!
+		}
 		.def {
 			left := c.current_token.to_node()
 			c.match_next(.function_name)!
@@ -100,6 +130,23 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 				left:  left
 				right: right
 			}
+		}
+		else {
+			return c.parse_script()!
+		}
+	}
+	return error('unhandled this error')
+}
+
+fn (mut c Compiler) parse_script() !NodeEl {
+	match c.current_token.token {
+		.module_name {
+			return NodeEl(Node{
+				left:  TokenRef{
+					token: .__aliases__
+				}
+				right: [NodeEl(c.current_token)]
+			})
 		}
 		.arroba {
 			c.match_next(.ident)!
@@ -172,28 +219,46 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 						return NodeEl(token)
 					}
 					else {
-						// token := c.current_token
+						// ident := c.parse_script()!
+						token := c.current_token
+						c.next_token()
+						value := c.parse_script()!
+						c.constants << Const{
+							token: token
+							value: value
+						}
+						return c.parse_stmt()!
+						// c.match_next(.ident)!
 						// c.match_next(.string)!
 						// if moduledoc := c.get_string_value(c.current_token) {
 						// 	c.moduledoc = moduledoc
 						// 	return NodeEl(Node{left: TokenRef{token: .moduledoc}, right: [NodeEl(token), c.current_token]})
 						// }
-						println('not defined for other attribute')
+						// return c.parse_error_custom('not defined parse custom attribute for `${c.get_ident_value(c.current_token)}`', c.current_token)
 					}
 				}
 			}
 		}
-		else {
-			return c.parse_script()!
-		}
-	}
-	return error('unhandled this error')
-}
-
-fn (mut c Compiler) parse_script() !NodeEl {
-	match c.current_token.token {
 		.ident {
-			return NodeEl(c.current_token)
+			ident := c.current_token
+
+			if c.peak_token.token == .colon {
+				// is list
+				mut keyword_list := []NodeEl{}
+				for {
+					c.next_token()
+					c.next_token()
+					value := c.parse_script()!
+					keyword_list << NodeEl(Keyword{ident, value})
+					if c.peak_token.token != .comma {
+						break
+					}
+				}
+				// parse_list
+				return NodeEl(keyword_list)
+			} else {
+				return NodeEl(c.current_token)
+			}
 		}
 		.float {}
 		.integer {
@@ -202,7 +267,7 @@ fn (mut c Compiler) parse_script() !NodeEl {
 		.caller_function {}
 		else {}
 	}
-	return error('finish parse script in token ${c.current_token.token}  ')
+	return c.parse_error('parse_script()', c.current_token)
 }
 
 fn into_block(elems []NodeEl) NodeEl {
@@ -229,4 +294,12 @@ fn (mut c Compiler) put_returns_into_function(function_idx int) ! {
 		}
 		c.functions[function_idx].returns = type_idx
 	}
+}
+
+fn (c Compiler) parse_error(func string, token TokenRef) IError {
+	return error('[${c.filesource}:${token.pos_line}:${token.pos_char}] `${func}` not defined for ${token}')
+}
+
+fn (c Compiler) parse_error_custom(str string, token TokenRef) IError {
+	return error('[${c.filesource}:${token.pos_line}:${token.pos_char}] ${str}')
 }

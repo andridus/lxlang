@@ -33,6 +33,7 @@ enum Token {
 	attrib
 	colon
 	module_name
+	percent
 	moduledoc
 	integer
 	float
@@ -43,6 +44,7 @@ enum Token {
 	defp
 	defmacro
 	defmacrop
+	default_arg
 	operator
 	function_name
 	caller_function

@@ -24,6 +24,7 @@ fn (t Token) str() string {
 		.rsbr { '${c(.white, .default, 'rsbr')}' }
 		.comma { '${c(.white, .default, 'comma')}' }
 		.arroba { '${c(.red, .default, '@')}' }
+		.percent { '${c(.red, .default, '%')}' }
 		.typespec { '${c(.red, .default, 'typespec')}' }
 		.colon { '${c(.red, .default, 'colon')}' }
 		.module_name { '${c(.red, .default, 'module_name')}' }
@@ -39,6 +40,7 @@ fn (t Token) str() string {
 		.operator { '${c(.cyan, .default, 'operator')}' }
 		.function_name { '${c(.cyan, .default, 'function_name')}' }
 		.caller_function { '${c(.cyan, .default, 'caller_function')}' }
+		.default_arg { '${c(.dark_gray, .default, 'default')}' }
 		.attrib { '${c(.dark_yellow, .default, '@')}' }
 		.moduledoc { '${c(.dark_yellow, .default, 'moduledoc')}' }
 		.__aliases__ { '${c(.cyan, .default, '__aliases__')}' }

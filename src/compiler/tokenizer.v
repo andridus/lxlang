@@ -119,54 +119,89 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 		}
 		c.source.current == `(` {
 			return TokenRef{
-				token: .lpar
+				token:    .lpar
+				pos_line: c.source.line
+				pos_char: c.source.char
 			}
 		}
 		c.source.current == `)` {
 			return TokenRef{
-				token: .rpar
+				token:    .rpar
+				pos_line: c.source.line
+				pos_char: c.source.char
 			}
 		}
 		c.source.current == `@` {
 			return TokenRef{
-				token: .arroba
+				token:    .arroba
+				pos_line: c.source.line
+				pos_char: c.source.char
+			}
+		}
+		c.source.current == `%` {
+			return TokenRef{
+				token:    .percent
+				pos_line: c.source.line
+				pos_char: c.source.char
 			}
 		}
 		c.source.current == `{` {
 			return TokenRef{
-				token: .lcbr
+				token:    .lcbr
+				pos_line: c.source.line
+				pos_char: c.source.char
 			}
 		}
 		c.source.current == `}` {
 			return TokenRef{
-				token: .rcbr
+				token:    .rcbr
+				pos_line: c.source.line
+				pos_char: c.source.char
 			}
 		}
 		c.source.current == `[` {
 			return TokenRef{
-				token: .lsbr
+				token:    .lsbr
+				pos_line: c.source.line
+				pos_char: c.source.char
 			}
 		}
 		c.source.current == `]` {
 			return TokenRef{
-				token: .rsbr
+				token:    .rsbr
+				pos_line: c.source.line
+				pos_char: c.source.char
 			}
 		}
 		c.source.current == `,` {
 			return TokenRef{
-				token: .comma
+				token:    .comma
+				pos_line: c.source.line
+				pos_char: c.source.char
 			}
 		}
 		c.source.current == `:` {
 			c.source.next()
 			if c.source.current == `:` {
 				return TokenRef{
-					token: .typespec
+					token:    .typespec
+					pos_line: c.source.line
+					pos_char: c.source.char
 				}
 			} else {
 				return TokenRef{
-					token: .colon
+					token:    .colon
+					pos_line: c.source.line
+					pos_char: c.source.char
 				}
+			}
+		}
+		c.source.current == `\\` && c.source.peak == `\\` {
+			c.source.next()
+			return TokenRef{
+				token:    .default_arg
+				pos_line: c.source.line
+				pos_char: c.source.char
 			}
 		}
 		operators_1.index(c.source.current) != -1 {
@@ -180,7 +215,9 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 				}
 			}
 			return TokenRef{
-				token: .operator
+				token:    .operator
+				pos_line: c.source.line
+				pos_char: c.source.char
 			}
 		}
 		is_letter(c.source.current) {
@@ -190,14 +227,14 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 			ident := c.source.get_next_ident()!
 			mut token := Token.ident
 			match true {
+				c.source.peak == `(` {
+					token = Token.caller_function
+				}
 				is_capital(curr) {
 					token = Token.module_name
 				}
 				c.token_before.token == .def {
 					token = Token.function_name
-				}
-				c.source.peak == `(` {
-					token = Token.caller_function
 				}
 				keywords.index(ident) != -1 {
 					token = Token.from(ident)!
@@ -301,9 +338,11 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 			}
 
 			return TokenRef{
-				idx:   idx
-				table: table
-				token: token
+				idx:      idx
+				table:    table
+				token:    token
+				pos_line: c.source.line
+				pos_char: c.source.char
 			}
 		}
 		is_string_delimiter(c.source.current) {
@@ -324,9 +363,11 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 					c.binaries << str
 				}
 				return TokenRef{
-					idx:   idx
-					table: .binary
-					token: .string
+					idx:      idx
+					table:    .binary
+					token:    .string
+					pos_line: c.source.line
+					pos_char: c.source.char
 				}
 			} else if table == TableEnum.ignored_strings {
 				mut idx := c.ignored_strings.len
@@ -338,9 +379,11 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 					c.ignored_strings << str
 				}
 				return TokenRef{
-					idx:   idx
-					table: .ignored_strings
-					token: .string
+					idx:      idx
+					table:    .ignored_strings
+					token:    .string
+					pos_line: c.source.line
+					pos_char: c.source.char
 				}
 			}
 		}
@@ -358,9 +401,10 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 					c.integers << value1
 				}
 				return TokenRef{
-					idx:   idx
-					table: .integers
-					token: .integer
+					idx:      idx
+					table:    .integers
+					token:    .integer
+					pos_line: c.source.line
 				}
 			} else if kind == .float {
 				value1 := value.bytestr().f64()
@@ -373,19 +417,16 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 				}
 
 				return TokenRef{
-					idx:   idx
-					table: .floats
-					token: .float
+					idx:      idx
+					table:    .floats
+					token:    .float
+					pos_char: c.source.char
 				}
 			}
-			return error('TODO implements for bigint and integer64')
+			return c.error('TODO implements for bigint and integer64')
 		}
 		else {
-			println(c.functions_caller_undefined)
-			println(c.tokens)
-			return error('[${c.filesource}:${c.source.line}:${c.source.char}] Unexpected token ${[
-				c.source.current,
-			]} [${[c.source.current].bytestr()}]')
+			return c.error('Unexpected token ${[c.source.current]} [${[c.source.current].bytestr()}]')
 		}
 	}
 }
@@ -397,4 +438,8 @@ fn (mut c Compiler) add_token(t TokenRef) (bool, TokenRef) {
 		return true, t
 	}
 	return false, TokenRef{}
+}
+
+fn (c Compiler) error(msg string) IError {
+	return error('[${c.filesource}:${c.source.line}:${c.source.char}] ${msg}')
 }
