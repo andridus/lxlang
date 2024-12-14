@@ -12,11 +12,13 @@ mut:
 }
 
 pub fn Source.new(src []u8) Source {
+	mut src0 := src.clone()
+	src0 << u8(0)
 	return Source{
-		src:     src
-		total:   src.len
-		current: src[0]
-		peak:    src[1]
+		src:     src0
+		total:   src0.len
+		current: src0[0]
+		peak:    src0[1]
 	}
 }
 
@@ -68,10 +70,8 @@ fn (mut s Source) get_next_string() !string {
 					s.next()
 					break
 				} else if is_mult {
-					bin << s.current
+					// bin << s.current
 				} else {
-					bin << s.current
-					s.next()
 					break
 				}
 			} else {

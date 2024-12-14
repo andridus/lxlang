@@ -68,12 +68,14 @@ pub fn (mut c Compiler) generate_beam() !Return {
 	for !c.source.eof() {
 		c.parse_next_token()!
 	}
+
 	tokenize_time := time.since(start)
 	c.times['tokenize'] = tokenize_time
 	if c.tokens.len > 0 {
 		node := c.parse_stmt()!
 		c.nodes = node
 	}
+	// println(c)
 	c.times['parser'] = time.since(start) - tokenize_time
 
 	result := match c.options.returns {

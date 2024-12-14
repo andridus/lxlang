@@ -32,6 +32,8 @@ mut:
 	functions_caller           []CallerFunction
 	functions_caller_undefined []CallerFunction
 	functions_idx              map[string]int
+	functions_caller_idx       map[string]int
+	functions_caller_undefined_idx       map[string]int
 	tokens                     []TokenRef
 	tmp_args                   []Arg
 	token_before               TokenRef
@@ -55,16 +57,27 @@ mut:
 struct Function {
 	name string
 mut:
+	matches map[string]FunctionMatch
 	starts   int
-	line     int
+	pos_line     int
+	pos_char     int
 	ends     int
 	returns  int
 	location string
 	args     []Arg
 }
 
+struct FunctionMatch {
+	default_args map[Token]NodeEl
+	pos_line  int
+	pos_char  int
+	starts   int
+	ends     int
+	args     []Arg
+}
 struct CallerFunction {
 	name         string
+	hash         string
 	line         int
 	char         int
 	starts       int
