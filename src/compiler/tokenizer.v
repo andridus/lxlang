@@ -35,7 +35,6 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 		// 	c.tokens << lpar
 		// 	c.token_before = lpar
 		// 	c.source.next()
-
 		// 	c.in_function_args = true
 		// 	mut args_ident := map[int]TokenRef{}
 		// 	mut args_type := map[int]TokenRef{}
@@ -56,7 +55,6 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 		// 		c.token_before = token0
 		// 	}
 		// 	c.in_function_args = false
-
 		// 	// prepare function args
 		// 	mut args := []Arg{}
 		// 	for k, arg_token in args_ident {
@@ -82,7 +80,6 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 		// 		}
 		// 	}
 		// 	c.functions[c.in_function_id].args = args
-
 		// 	// maybe get the return
 		// 	for !c.source.eof() {
 		// 		if c.source.current in [` `, `\n`, 9] {
@@ -95,7 +92,6 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 		// 		}
 		// 	}
 		// 	token1 := c.parse_next_token()!
-
 		// 	if token1.token == .typespec {
 		// 		token2 := c.parse_next_token()!
 		// 		if token2.token == .ident {
@@ -111,9 +107,7 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 		// 			}
 		// 		}
 		// 	}
-
 		// 	c.tmp_args.clear()
-
 		// 	return c.parse_next_token_priv()
 		// 	// return
 		// }
@@ -218,6 +212,7 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 				token:    .operator
 				pos_line: c.source.line
 				pos_char: c.source.char
+				bin:      ops.bytestr()
 			}
 		}
 		is_letter(c.source.current) {
@@ -274,8 +269,8 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 							c.functions << &Function{
 								name:     ident
 								location: c.filesource
-								pos_line:     c.source.line
-								pos_char:     c.source.char - ident.len
+								pos_line: c.source.line
+								pos_char: c.source.char - ident.len
 								starts:   0
 								ends:     0
 								returns:  0

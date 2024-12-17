@@ -79,7 +79,7 @@ fn (mut s Source) get_next_string() !string {
 			}
 		}
 		if is_mult {
-			return bin.bytestr().trim_space()
+			return bin.bytestr().trim('\n')
 		} else {
 			return bin.bytestr()
 		}

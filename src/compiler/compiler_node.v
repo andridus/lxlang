@@ -2,41 +2,49 @@ module compiler
 
 type NodeEl = TokenRef | Node | []NodeEl | Keyword
 
+// fn (n NodeEl) str() string {
+// 	return match n {
+// 		TokenRef {
+// 			n.token.str()
+// 		}
+// 		Node {
+// 			return '{${n.left.str()}, ${n.right.str()}}'
+// 		}
+// 		[]NodeEl {
+// 			'[${n.map(|a| a.str()).join(', ')}]'
+// 		}
+// 		Keyword {
+// 			'${n.key}: ${n.value}'
+// 		}
+// 	}
 
-fn (n NodeEl) str() string {
-	return match n {
-		TokenRef {
-			n.token.str()
-		}
-		Node {
-			return '{${n.left.str()}, ${n.right.str()}}'
-		}
-		[]NodeEl {
-			'[${n.map(|a| a.str()).join(', ')}]'
-		}
-		Keyword {
-			'${n.key}: ${n.value}'
-		}
-	}
-
-}
+// }
 struct Keyword {
 	key   NodeEl
 	value NodeEl
 }
 
 struct Node {
-	left       NodeEl = c_nil
-	right      NodeEl = c_nil
-	attributes []string
+	left            NodeEl = c_nil
+	right           NodeEl = c_nil
+	attributes      []string
+	is_should_match bool
+	type_id         int
+	type_match      string
 }
 
-struct TokenRef {
+pub struct TokenRef {
+pub:
 	token    Token
 	idx      int
 	table    TableEnum
 	pos_line int
 	pos_char int
+	bin      string
+}
+
+pub fn (t TokenRef) positions() (int, int) {
+	return t.pos_line, t.pos_char
 }
 
 fn (t TokenRef) to_node() NodeEl {

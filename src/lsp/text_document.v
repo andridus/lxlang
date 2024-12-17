@@ -57,20 +57,16 @@ struct HoverParams {
 	position      Position
 }
 
-struct HoverResponse {
-	result HoverResult
+fn new_hover_result(contents string) string {
+	if contents == '' {
+		return '{"contents": null}'
+	} else {
+		return '{"contents":{"language":"markdown","value":"${replace_chars(contents)}"}}'
+	}
 }
 
-struct HoverResult {
-	contents string
-}
-
-fn HoverResult.new(contents string) HoverResult {
-	return HoverResult{contents}
-}
-
-fn (h HoverResult) str() string {
-	return '{"contents":"${h.contents}"}'
+fn replace_chars(str string) string {
+	return str.replace('\n', '\\n')
 }
 
 struct DefinitionParams {

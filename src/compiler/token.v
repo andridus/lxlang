@@ -14,7 +14,7 @@ enum TableEnum {
 	functions
 }
 
-enum Token {
+pub enum Token {
 	nil
 	eof
 	ident

@@ -1,4 +1,5 @@
 module compiler
+
 fn (c Compiler) eof() bool {
 	return c.current_position >= c.tokens.len
 }
@@ -24,7 +25,8 @@ fn (mut c Compiler) next_token() {
 fn (mut c Compiler) match_next(token Token) ! {
 	c.next_token()
 	if c.current_token.token != token {
-		return c.parse_error_custom('unexpected term ${c.current_token.token}, should be ${token}', c.current_token)
+		return c.parse_error_custom('unexpected term ${c.current_token.token}, should be ${token}',
+			c.current_token)
 	}
 }
 
@@ -33,7 +35,8 @@ fn (mut c Compiler) maybe_match_next(tokens []Token) !Token {
 	if c.current_token.token in tokens {
 		return c.current_token.token
 	} else {
-		return c.parse_error_custom('unexpected term ${c.current_token.token}, should be in ${tokens}', c.current_token)
+		return c.parse_error_custom('unexpected term ${c.current_token.token}, should be in ${tokens}',
+			c.current_token)
 	}
 }
 
@@ -73,7 +76,7 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 			for c.peak_token.token == .comma {
 				c.next_token()
 				c.next_token() // fix this double caller
-				args << c.parse_script()!
+				args << c.parse_expr()!
 			}
 			c.imports << Import{
 				token: token
@@ -88,7 +91,7 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 			for c.peak_token.token == .comma {
 				c.next_token()
 				c.next_token() // fix this double caller
-				args << c.parse_script()!
+				args << c.parse_expr()!
 			}
 			c.aliases << Alias{
 				token: token
@@ -100,16 +103,17 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 			left := c.current_token.to_node()
 
 			mut args := []Arg{}
-			mut default_args := map[Token]NodeEl{}
+			pos_line := c.current_token.pos_line
+			pos_char := c.current_token.pos_char
+			mut default_args := []NodeEl{}
 			c.match_next(.function_name)!
 			function_name := c.current_token
 			mut idx_function := 0
-			if name := c.get_ident_value(function_name){
-				if idx_function0 := c.functions_idx[name]{
+			if name := c.get_ident_value(function_name) {
+				if idx_function0 := c.functions_idx[name] {
 					idx_function = idx_function0
 				}
 			}
-			println(idx_function)
 			mut right := [c.current_token.to_node()]
 
 			match c.peak_token.token {
@@ -121,63 +125,26 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 				}
 				.lpar {
 					c.next_token()
-					mut args_ident := map[int]TokenRef{}
-					mut args_type := map[int]TokenRef{}
 					mut default_args0 := []TokenRef{}
 					mut default_values0 := []NodeEl{}
-					mut i := -1
-					// get args token
-
-					mut is_typespec := false
 					for {
 						if c.peak_token.token == .rpar {
 							break
-						} else if c.peak_token.token == .typespec {
-							c.next_token()
-							is_typespec = true
-						} else if c.current_token.token == .ident && is_typespec {
-							args_type[i] = c.current_token
-							is_typespec = false
-						} else if c.current_token.token == .ident {
-							i++
-							args_ident[i] = c.current_token
-							if c.peak_token.token == .default_arg {
-								c.next_token()
-								c.next_token()
-
-								default_args0 << args_ident[i]
-								default_values0 << c.parse_script()!
-								continue
-							}
-						}  else if c.peak_token.token == .comma {
-							c.next_token()
 						}
 						c.next_token()
-					}
-
-					// prepare function args
-					println(args_ident)
-
-					for k, arg_token in args_ident {
-						if type_value := args_type[k] {
-							if ident := c.idents[type_value.idx] {
-								mut type_idx := c.types.len
-								type_idx0 := c.types.index(ident)
-								if type_idx0 != -1 {
-									type_idx = type_idx0
-								} else {
-									c.types << ident
-								}
+						arg := c.parse_expr()!
+						if arg is Node {
+							if ident := c.get_left_ident(arg.left) {
 								args << Arg{
-									token: arg_token
-									type:  type_idx
+									ident:           ident
+									type:            arg.type_id
+									type_match:      arg.type_match
+									is_should_match: arg.is_should_match
 								}
 							}
-						} else {
-							args << Arg{
-								token: arg_token
-								type:  0
-							}
+						}
+						if c.peak_token.token == .comma {
+							c.next_token()
 						}
 					}
 
@@ -201,7 +168,6 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 							c.functions[c.in_function_id].returns = type_idx
 						}
 					}
-
 				}
 				else {}
 			}
@@ -213,19 +179,17 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 				}
 			}
 			hashed := args_str.join('|')
-			println(hashed)
-			// println(c.tokens)
 			if _ := c.functions[idx_function].matches[hashed] {
-				return error("Function ${hashed} already defined")
+				return error('Function ${hashed} already defined')
 			} else {
 				if c.peak_token.token != .def {
-					c.functions[idx_function].matches[hashed] = FunctionMatch {
-						default_args: default_args
-						args: args
+					c.functions[idx_function].matches[hashed] = FunctionMatch{
+						args:     args
+						pos_char: pos_char
+						pos_line: pos_line
 					}
 				}
 			}
-			// println(c.functions)
 			mut right0 := []NodeEl{}
 			mut has_ending_function := true
 			if c.peak_token.token == .comma {
@@ -234,10 +198,8 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 				c.match_next(.colon)!
 				c.next_token()
 				has_ending_function = false
-
 			} else if c.peak_token.token == .do {
 				c.next_token()
-
 			} else if c.peak_token.token == .def {
 				c.functions[idx_function].args = args
 				mut functions := []NodeEl{}
@@ -245,18 +207,16 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 					functions << c.parse_stmt()!
 					// c.next_token()
 				}
-
-				println(functions)
+				// Should return all functions body
 				return functions[0]
-
 			} else {
-				return error("missing function definition")
+				return error('missing function definition')
 			}
 			if c.current_token.token != .end {
 				do := TokenRef{
 					token: .do
 				}
-				parsed :=c.parse_script()!
+				parsed := c.parse_expr()!
 				right0 << parsed
 				right << NodeEl(Keyword{do, parsed})
 			}
@@ -270,13 +230,51 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 			}
 		}
 		else {
-			return c.parse_script()!
+			return c.parse_expr()!
 		}
 	}
 	return error('unhandled this error')
 }
 
-fn (mut c Compiler) parse_script() !NodeEl {
+fn (mut c Compiler) parse_expr() !NodeEl {
+	term := c.parse_term()!
+	if c.peak_token.token == .operator {
+		c.next_token()
+		match c.current_token.bin {
+			'=' {
+				// need to be check if is a matchble expression
+				c.next_token()
+				left := c.parse_expr()!
+				type_id, type_match := match term {
+					Node {
+						if type_match := c.to_value_str(term.left) {
+							term.type_id, type_match
+						} else {
+							term.type_id, ''
+						}
+					}
+					else {
+						0, ''
+					}
+				}
+				e := NodeEl(Node{
+					left:            left
+					right:           term
+					is_should_match: true
+					type_id:         type_id
+					type_match:      type_match
+				})
+				return e
+			}
+			else {
+				return error('To do something with this operator `${c.current_token.bin}`')
+			}
+		}
+	}
+	return term
+}
+
+fn (mut c Compiler) parse_term() !NodeEl {
 	match c.current_token.token {
 		.module_name {
 			return NodeEl(Node{
@@ -289,7 +287,6 @@ fn (mut c Compiler) parse_script() !NodeEl {
 		.arroba {
 			c.match_next(.ident)!
 			if attribute := c.get_ident_value(c.current_token) {
-
 				match attribute {
 					'moduledoc' {
 						token := c.current_token
@@ -339,7 +336,7 @@ fn (mut c Compiler) parse_script() !NodeEl {
 							if function_idx := c.functions_idx[atom] {
 								c.match_next(.typespec)!
 								c.next_token()
-								ret := c.parse_script()!
+								ret := c.parse_expr()!
 								if ret is TokenRef && ret.token == .ident {
 									if ident0 := c.idents[ret.idx] {
 										mut type_idx := c.types.len
@@ -358,10 +355,10 @@ fn (mut c Compiler) parse_script() !NodeEl {
 						return NodeEl(token)
 					}
 					else {
-						// ident := c.parse_script()!
+						// ident := c.parse_expr()!
 						token := c.current_token
 						c.next_token()
-						value := c.parse_script()!
+						value := c.parse_expr()!
 						c.constants << Const{
 							token: token
 							value: value
@@ -378,7 +375,6 @@ fn (mut c Compiler) parse_script() !NodeEl {
 				}
 			}
 		}
-
 		.caller_function {
 			caller := c.current_token
 			if c.peak_token.token == .lpar {
@@ -400,7 +396,7 @@ fn (mut c Compiler) parse_script() !NodeEl {
 						inside_parens--
 						c.next_token()
 					}
-					args << c.parse_script()!
+					args << c.parse_expr()!
 					c.next_token()
 				}
 
@@ -418,16 +414,15 @@ fn (mut c Compiler) parse_script() !NodeEl {
 						if new {
 							c.functions_caller << &CallerFunction{
 								name:         caller_name
-								hash: fn_hash
+								hash:         fn_hash
 								line:         c.current_line
 								char:         c.source.char - caller_name.len
 								starts:       c.tokens.len
 								function_idx: idx0
 							}
 						}
-
 					} else {
-						mut idx_caller :=  c.functions_caller_undefined.len
+						mut idx_caller := c.functions_caller_undefined.len
 						mut new := true
 						if idx_caller0 := c.functions_caller_undefined_idx[fn_hash] {
 							idx_caller = idx_caller0
@@ -437,7 +432,7 @@ fn (mut c Compiler) parse_script() !NodeEl {
 						if new {
 							c.functions_caller_undefined << &CallerFunction{
 								name:   caller_name
-								hash: fn_hash
+								hash:   fn_hash
 								line:   c.source.line
 								char:   c.source.char - caller_name.len
 								starts: c.tokens.len
@@ -446,12 +441,9 @@ fn (mut c Compiler) parse_script() !NodeEl {
 						}
 					}
 				}
-
-
 			}
 			return NodeEl(caller)
 		}
-
 		.colon {
 			if c.peak_token.token == .ident {
 				c.next_token()
@@ -460,14 +452,14 @@ fn (mut c Compiler) parse_script() !NodeEl {
 		}
 		.ident {
 			ident := c.current_token
-
+			mut type_id := 0
 			if c.peak_token.token == .colon {
 				// is list
 				mut keyword_list := []NodeEl{}
 				for {
 					c.next_token()
 					c.next_token()
-					value := c.parse_script()!
+					value := c.parse_expr()!
 					keyword_list << NodeEl(Keyword{ident, value})
 					if c.peak_token.token != .comma {
 						break
@@ -475,23 +467,63 @@ fn (mut c Compiler) parse_script() !NodeEl {
 				}
 				// parse_list
 				return NodeEl(keyword_list)
-			} else {
-				return NodeEl(c.current_token)
 			}
+			if c.peak_token.token == .typespec {
+				c.next_token()
+				c.match_next(.ident)!
+				ident_type0 := c.current_token
+				if ident_type := c.get_ident_value(ident_type0) {
+					type_id = c.types.len
+					type_idx0 := c.types.index(ident_type)
+					if type_idx0 != -1 {
+						type_id = type_idx0
+					} else {
+						c.types << ident_type
+					}
+				}
+			}
+			if c.peak_token.token == .default_arg {
+				// fix default here
+				c.next_token()
+				c.next_token()
+				value := c.parse_expr()!
+				return NodeEl(Node{
+					left:    NodeEl(ident)
+					right:   value
+					type_id: type_id
+				})
+			}
+			if nil_ := c.get_ident_value(ident) {
+				if nil_ == 'nil' {
+					type_id = c.types.index('nil')
+				}
+			}
+			return NodeEl(Node{
+				left:    NodeEl(ident)
+				type_id: type_id
+			})
 		}
 		.float {
-			return NodeEl(c.current_token)
+			return NodeEl(Node{
+				left:    NodeEl(c.current_token)
+				type_id: c.types.index('float')
+			})
 		}
 		.integer {
-			return NodeEl(c.current_token)
+			return NodeEl(Node{
+				left:    NodeEl(c.current_token)
+				type_id: c.types.index('integer')
+			})
 		}
 		.string {
-			return NodeEl(c.current_token)
+			return NodeEl(Node{
+				left:    NodeEl(c.current_token)
+				type_id: c.types.index('string')
+			})
 		}
 		else {}
 	}
-	println(c.tokens)
-	return c.parse_error('parse_script()', c.current_token)
+	return c.parse_error('parse_expr()', c.current_token)
 }
 
 fn into_block(elems []NodeEl) NodeEl {
