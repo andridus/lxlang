@@ -109,11 +109,10 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 			c.match_next(.function_name)!
 			function_name := c.current_token
 			mut idx_function := 0
-			if name := c.get_ident_value(function_name) {
-				if idx_function0 := c.functions_idx[name] {
-					idx_function = idx_function0
-				}
+			fun := c.get_function_value(function_name) or {
+				return c.parse_error('not found function', c.current_token)
 			}
+			idx_function = fun.idx
 			mut right := [c.current_token.to_node()]
 
 			match c.peak_token.token {
@@ -179,8 +178,8 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 				}
 			}
 			hashed := args_str.join('|')
-			if _ := c.functions[idx_function].matches[hashed] {
-				return error('Function ${hashed} already defined')
+			if _ := fun.matches[hashed] {
+				return error('Function ${fun.name} ${hashed} already defined')
 			} else {
 				if c.peak_token.token != .def {
 					c.functions[idx_function].matches[hashed] = FunctionMatch{
@@ -192,25 +191,32 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 			}
 			mut right0 := []NodeEl{}
 			mut has_ending_function := true
-			if c.peak_token.token == .comma {
-				c.next_token()
-				c.match_next(.do)!
-				c.match_next(.colon)!
-				c.next_token()
-				has_ending_function = false
-			} else if c.peak_token.token == .do {
-				c.next_token()
-			} else if c.peak_token.token == .def {
-				c.functions[idx_function].args = args
-				mut functions := []NodeEl{}
-				for c.peak_token.token == .def {
-					functions << c.parse_stmt()!
-					// c.next_token()
+
+			match true {
+				c.peak_token.token == .comma {
+					c.next_token()
+					c.match_next(.do)!
+					c.match_next(.colon)!
+					c.next_token()
+					has_ending_function = false
 				}
-				// Should return all functions body
-				return functions[0]
-			} else {
-				return error('missing function definition')
+				c.peak_token.token == .do {
+					c.match_next(.do)!
+					c.next_token()
+				}
+				c.peak_token.token == .def {
+					c.functions[idx_function].args = args
+					mut functions := []NodeEl{}
+					for c.peak_token.token == .def {
+						functions << c.parse_stmt()!
+						// c.next_token()
+					}
+					// Should return all functions body
+					return functions[0]
+				}
+				else {
+					return error('missing function definition')
+				}
 			}
 			if c.current_token.token != .end {
 				do := TokenRef{

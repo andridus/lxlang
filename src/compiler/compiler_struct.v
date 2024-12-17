@@ -65,6 +65,7 @@ mut:
 	returns  int
 	location string
 	args     []Arg
+	idx      int
 }
 
 struct FunctionMatch {

@@ -275,6 +275,7 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 								ends:     0
 								returns:  0
 								args:     []
+								idx:      idx
 							}
 						}
 						c.in_function = true
