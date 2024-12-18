@@ -55,6 +55,8 @@ pub enum Token {
 	caller_function
 	__aliases__
 	__block__
+	pipe
+	match
 	ignore
 }
 

@@ -25,9 +25,10 @@ struct Keyword {
 }
 
 struct Node {
-	left            NodeEl = c_nil
-	right           NodeEl = c_nil
-	attributes      []string
+	left       NodeEl = c_nil
+	right      NodeEl = c_nil
+	attributes []string
+mut:
 	is_should_match bool
 	type_id         int
 	type_match      string

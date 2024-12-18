@@ -25,6 +25,8 @@ fn (t Token) to_str() string {
 		.rpar { '${c(.white, .default, 'rpar')}' }
 		.lsbr { '${c(.white, .default, 'lsbr')}' }
 		.rsbr { '${c(.white, .default, 'rsbr')}' }
+		.pipe { '${c(.white, .default, 'pipe')}' }
+		.match { '${c(.white, .default, 'match')}' }
 		.comma { '${c(.white, .default, 'comma')}' }
 		.arroba { '${c(.red, .default, '@')}' }
 		.percent { '${c(.red, .default, '%')}' }

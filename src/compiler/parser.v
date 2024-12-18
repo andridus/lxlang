@@ -111,6 +111,22 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 
 fn (mut c Compiler) parse_expr() !NodeEl {
 	term := c.parse_term()!
+	mut is_should_match := false
+	mut type_id := 0
+	mut type_match := ''
+	if c.in_function_args {
+		match term {
+			Node {
+				type_id, type_match = if type_match0 := c.to_value_str(term.left) {
+					term.type_id, type_match0
+				} else {
+					term.type_id, ''
+				}
+				is_should_match = true
+			}
+			else {}
+		}
+	}
 	if c.peak_token.token == .operator {
 		c.next_token()
 		match c.current_token.bin {
@@ -125,23 +141,13 @@ fn (mut c Compiler) parse_expr() !NodeEl {
 			'=' {
 				// need to be check if is a matchble expression
 				c.next_token()
-				left := c.parse_expr()!
-				type_id, type_match := match term {
-					Node {
-						if type_match := c.to_value_str(term.left) {
-							term.type_id, type_match
-						} else {
-							term.type_id, ''
-						}
-					}
-					else {
-						0, ''
-					}
-				}
+				right := c.parse_expr()!
 				return NodeEl(Node{
-					left:            left
-					right:           term
-					is_should_match: true
+					left:            TokenRef{
+						token: .match
+					}
+					right:           [term, right]
+					is_should_match: is_should_match
 					type_id:         type_id
 					type_match:      type_match
 				})
@@ -155,6 +161,16 @@ fn (mut c Compiler) parse_expr() !NodeEl {
 					right: [term, right]
 				})
 			}
+			'|>' {
+				c.next_token()
+				right := c.parse_expr()!
+				return NodeEl(Node{
+					left:  TokenRef{
+						token: .pipe
+					}
+					right: [term, right]
+				})
+			}
 			'->' {
 				// bypass to handle inside defined functions
 				return term
@@ -163,6 +179,16 @@ fn (mut c Compiler) parse_expr() !NodeEl {
 				return error('To do something with this operator `${c.current_token.bin}`')
 			}
 		}
+	} else if is_should_match {
+		return NodeEl(Node{
+			left:            TokenRef{
+				token: .match
+			}
+			right:           [term]
+			is_should_match: is_should_match
+			type_id:         type_id
+			type_match:      type_match
+		})
 	}
 	return term
 }

@@ -46,12 +46,12 @@ fn (c Compiler) extract_idents_from_match_expr(expr NodeEl) ![]string {
 			match expr.token {
 				.ident {
 					if value := c.get_ident_value(expr) {
-						idents << '.${value}'
+						idents << '=${value}'
 					}
 				}
 				.string {
 					if value := c.get_string_value(expr) {
-						idents << '"${value}"'
+						idents << '="${value}"'
 					}
 				}
 				else {}
@@ -69,7 +69,14 @@ fn (c Compiler) extract_value_str_from_node_el(expr NodeEl) ?string {
 		}
 		TokenRef {
 			if expr.token == .string {
-				return c.get_string_value(expr)
+				if v := c.get_string_value(expr) {
+					return "\"${v}\""
+				}
+			}
+			if expr.token == .ident {
+				if v := c.get_ident_value(expr) {
+					return ':${v}'
+				}
 			}
 		}
 		else {}
@@ -110,7 +117,16 @@ fn (c Compiler) make_args_match_hash(args []Arg, guard NodeEl) string {
 	mut args_str := []string{}
 	for a in args {
 		if a.idents_from_match.len > 0 {
-			args_str << 'map{${a.idents_from_match.join(',')}}'
+			args_hashed := a.idents_from_match.join(',')
+			str := match true {
+				args_hashed.starts_with('[') {
+					'map{${args_hashed}}'
+				}
+				else {
+					args_hashed
+				}
+			}
+			args_str << str
 		} else if type_ := c.types[a.type] {
 			args_str << type_
 		}
@@ -119,8 +135,7 @@ fn (c Compiler) make_args_match_hash(args []Arg, guard NodeEl) string {
 	if guard_hash == 'nil' {
 		return '${hashed}'
 	}
-	// println('${hashed}.${guard_hash}')
-	return '${hashed}\$when(${guard_hash})'
+	return '${hashed}\$(${guard_hash})'
 }
 
 fn (c Compiler) to_value_str(n NodeEl) ?string {

@@ -80,6 +80,10 @@ fn (mut c Compiler) maybe_parse_args() ?[]Arg {
 		mut default_args := []NodeEl{}
 		mut default_args0 := []TokenRef{}
 		mut default_values0 := []NodeEl{}
+		c.in_function_args = true
+		defer {
+			c.in_function_args = false
+		}
 		c.match_next(.lpar) or { return none }
 		for {
 			if c.peak_token.token == .rpar {
@@ -90,11 +94,18 @@ fn (mut c Compiler) maybe_parse_args() ?[]Arg {
 			if arg is Node {
 				if ident := c.get_left_ident(arg.left) {
 					match ident.token {
-						.percent {
+						.match {
 							// when is struct or map
+							arg_right := arg.right as []NodeEl
+							ident0, right := if arg_right.len == 2 {
+								ident0 := c.get_left_ident(arg_right[1]) or { TokenRef{} }
+								ident0, arg_right[0]
+							} else {
+								TokenRef{}, arg_right[0]
+							}
 							args << Arg{
-								ident:             ident
-								idents_from_match: c.extract_idents_from_match_expr(arg.right) or {
+								ident:             ident0
+								idents_from_match: c.extract_idents_from_match_expr(right) or {
 									return none
 								}
 								type:              arg.type_id

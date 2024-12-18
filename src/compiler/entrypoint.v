@@ -76,7 +76,6 @@ pub fn (mut c Compiler) generate_beam() !Return {
 		c.nodes = node
 	}
 	c.times['parser'] = time.since(start) - tokenize_time
-
 	result := match c.options.returns {
 		.beam_bytes {
 			Return(c.beam_to_bytes()!)
