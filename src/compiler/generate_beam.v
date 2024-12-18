@@ -395,6 +395,8 @@ fn (mut c Compiler) function_body(func_node NodeEl) []BeamInstruction {
 				.consts {}
 				.modules {}
 				.functions {}
+				.functions_caller {}
+				.functions_caller_undefined {}
 			}
 		}
 		Keyword {}

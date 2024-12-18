@@ -12,6 +12,8 @@ enum TableEnum {
 	consts
 	modules
 	functions
+	functions_caller
+	functions_caller_undefined
 }
 
 pub enum Token {
@@ -44,6 +46,9 @@ pub enum Token {
 	defp
 	defmacro
 	defmacrop
+	cond
+	not
+	when
 	default_arg
 	operator
 	function_name

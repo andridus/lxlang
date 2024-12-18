@@ -21,6 +21,108 @@ fn (c Compiler) get_left_ident(n NodeEl) ?TokenRef {
 	}
 }
 
+fn (c Compiler) extract_idents_from_match_expr(expr NodeEl) ![]string {
+	mut idents := []string{}
+	match expr {
+		[]NodeEl {
+			for node in expr {
+				idents << c.extract_idents_from_match_expr(node)!
+			}
+		}
+		Node {
+			idents << c.extract_idents_from_match_expr(expr.left)!
+			idents << c.extract_idents_from_match_expr(expr.right)!
+		}
+		Keyword {
+			mut key := ''
+			if key0 := c.extract_value_str_from_node_el(expr.key) {
+				key = '[${key0}]'
+			}
+			for value in c.extract_idents_from_match_expr(expr.value)! {
+				idents << '${key}${value}'
+			}
+		}
+		TokenRef {
+			match expr.token {
+				.ident {
+					if value := c.get_ident_value(expr) {
+						idents << '.${value}'
+					}
+				}
+				.string {
+					if value := c.get_string_value(expr) {
+						idents << '"${value}"'
+					}
+				}
+				else {}
+			}
+		}
+	}
+	idents.sort()
+	return idents
+}
+
+fn (c Compiler) extract_value_str_from_node_el(expr NodeEl) ?string {
+	match expr {
+		Node {
+			return c.extract_value_str_from_node_el(expr.left)
+		}
+		TokenRef {
+			if expr.token == .string {
+				return c.get_string_value(expr)
+			}
+		}
+		else {}
+	}
+	return none
+}
+
+fn (c Compiler) make_hash_from_node_el(guard NodeEl) string {
+	match guard {
+		TokenRef {
+			match guard.token {
+				.caller_function {
+					if fun := c.get_function_caller_value(guard) {
+						return fun.hash
+					}
+					if fun := c.get_function_caller_undefined_value(guard) {
+						return fun.hash
+					}
+				}
+				else {
+					return guard.token.str()
+				}
+			}
+		}
+		Node {
+			left_hash := c.make_hash_from_node_el(guard.left)
+			right_hash := c.make_hash_from_node_el(guard.right)
+			return '${left_hash}_${right_hash}'
+		}
+		else {}
+	}
+
+	return ''
+}
+
+fn (c Compiler) make_args_match_hash(args []Arg, guard NodeEl) string {
+	guard_hash := c.make_hash_from_node_el(guard)
+	mut args_str := []string{}
+	for a in args {
+		if a.idents_from_match.len > 0 {
+			args_str << 'map{${a.idents_from_match.join(',')}}'
+		} else if type_ := c.types[a.type] {
+			args_str << type_
+		}
+	}
+	hashed := args_str.join('|')
+	if guard_hash == 'nil' {
+		return '${hashed}'
+	}
+	// println('${hashed}.${guard_hash}')
+	return '${hashed}\$when(${guard_hash})'
+}
+
 fn (c Compiler) to_value_str(n NodeEl) ?string {
 	match n {
 		TokenRef {
@@ -43,6 +145,24 @@ pub fn (c Compiler) get_function_value(t TokenRef) ?Function {
 	if t.table == .functions {
 		if function := c.functions[t.idx] {
 			return function
+		}
+	}
+	return none
+}
+
+pub fn (c Compiler) get_function_caller_value(t TokenRef) ?CallerFunction {
+	if t.table == .functions_caller {
+		if caller_function := c.functions_caller[t.idx] {
+			return caller_function
+		}
+	}
+	return none
+}
+
+pub fn (c Compiler) get_function_caller_undefined_value(t TokenRef) ?CallerFunction {
+	if t.table == .functions_caller_undefined {
+		if caller_function := c.functions_caller_undefined[t.idx] {
+			return caller_function
 		}
 	}
 	return none

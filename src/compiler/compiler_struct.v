@@ -63,6 +63,7 @@ mut:
 	pos_char int
 	ends     int
 	returns  int
+	guard    NodeEl
 	location string
 	args     []Arg
 	idx      int
@@ -70,10 +71,12 @@ mut:
 
 struct FunctionMatch {
 	default_args map[Token]NodeEl
+	guard        NodeEl
 	pos_line     int
 	pos_char     int
 	starts       int
 	ends         int
+	returns      int
 	args         []Arg
 }
 
@@ -112,10 +115,11 @@ struct Alias {
 struct Arg {
 	ident TokenRef
 mut:
-	type            int
-	type_match      string
-	is_should_match bool
-	match_expr      NodeEl // pointer to match exprs
+	type              int
+	type_match        string
+	idents_from_match []string
+	is_should_match   bool
+	match_expr        NodeEl // pointer to match exprs
 }
 
 pub fn (c Compiler) get_tokens() []TokenRef {

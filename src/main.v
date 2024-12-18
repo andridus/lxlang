@@ -19,7 +19,7 @@ fn main() {
 		execute:       start_language_server
 	}
 	mut comp := Command{
-		name:          'compiler'
+		name:          'compile'
 		description:   'Execute the elixir compiler'
 		usage:         '<name>'
 		required_args: 1

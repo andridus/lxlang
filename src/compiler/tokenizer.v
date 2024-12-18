@@ -27,90 +27,6 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 			c.source.next()
 			return c.parse_next_token_priv()
 		}
-		// c.source.current == `(` && c.token_before.token == .function_name {
-		// 	// add rpar
-		// 	lpar := TokenRef{
-		// 		token: .lpar
-		// 	}
-		// 	c.tokens << lpar
-		// 	c.token_before = lpar
-		// 	c.source.next()
-		// 	c.in_function_args = true
-		// 	mut args_ident := map[int]TokenRef{}
-		// 	mut args_type := map[int]TokenRef{}
-		// 	mut i := -1
-		// 	// get args token
-		// 	for !c.source.eof() {
-		// 		before := c.token_before
-		// 		token0 := c.parse_next_token()!
-		// 		if token0.token == .rpar {
-		// 			c.source.next()
-		// 			break
-		// 		} else if token0.token == .ident && before.token == .typespec {
-		// 			args_type[i] = token0
-		// 		} else if token0.token == .ident {
-		// 			i++
-		// 			args_ident[i] = token0
-		// 		}
-		// 		c.token_before = token0
-		// 	}
-		// 	c.in_function_args = false
-		// 	// prepare function args
-		// 	mut args := []Arg{}
-		// 	for k, arg_token in args_ident {
-		// 		if type_value := args_type[k] {
-		// 			if ident := c.idents[type_value.idx] {
-		// 				mut type_idx := c.types.len
-		// 				type_idx0 := c.types.index(ident)
-		// 				if type_idx0 != -1 {
-		// 					type_idx = type_idx0
-		// 				} else {
-		// 					c.types << ident
-		// 				}
-		// 				args << Arg{
-		// 					token: arg_token
-		// 					type:  type_idx
-		// 				}
-		// 			}
-		// 		} else {
-		// 			args << Arg{
-		// 				token: arg_token
-		// 				type:  0
-		// 			}
-		// 		}
-		// 	}
-		// 	c.functions[c.in_function_id].args = args
-		// 	// maybe get the return
-		// 	for !c.source.eof() {
-		// 		if c.source.current in [` `, `\n`, 9] {
-		// 			if c.source.current == `\n` {
-		// 				c.current_line++
-		// 			}
-		// 			c.source.next()
-		// 		} else {
-		// 			break
-		// 		}
-		// 	}
-		// 	token1 := c.parse_next_token()!
-		// 	if token1.token == .typespec {
-		// 		token2 := c.parse_next_token()!
-		// 		if token2.token == .ident {
-		// 			if ident := c.idents[token2.idx] {
-		// 				mut type_idx := c.types.len
-		// 				type_idx0 := c.types.index(ident)
-		// 				if type_idx0 != -1 {
-		// 					type_idx = type_idx0
-		// 				} else {
-		// 					c.types << ident
-		// 				}
-		// 				c.functions[c.in_function_id].returns = type_idx
-		// 			}
-		// 		}
-		// 	}
-		// 	c.tmp_args.clear()
-		// 	return c.parse_next_token_priv()
-		// 	// return
-		// }
 		c.source.current == `(` {
 			return TokenRef{
 				token:    .lpar
@@ -199,14 +115,28 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 			}
 		}
 		operators_1.index(c.source.current) != -1 {
-			mut ops := [c.source.current]
-			c.source.next()
-			if operators_1.index(c.source.current) != -1 {
-				ops << c.source.current
-				c.source.next()
-				if operators_1.index(c.source.current) != -1 {
-					ops << c.source.current
+			mut ops := c.source.src[c.source.i..(c.source.i + 3)]
+			mut has_op := false
+			for op in operators_3 {
+				if op == ops {
+					c.source.next()
+					c.source.next()
+					has_op = true
+					break
 				}
+			}
+			if has_op == false {
+				for op in operators_2 {
+					if op == ops[..2] {
+						ops = ops[..2].clone()
+						c.source.next()
+						has_op = true
+						break
+					}
+				}
+			}
+			if has_op == false {
+				ops = [ops[0]]
 			}
 			return TokenRef{
 				token:    .operator
@@ -221,8 +151,9 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 			mut table := TableEnum.none
 			ident := c.source.get_next_ident()!
 			mut token := Token.ident
+			mut bin := ''
 			match true {
-				c.token_before.token == .def {
+				c.token_before.token in [.def, .defp] {
 					token = Token.function_name
 				}
 				c.source.peak == `(` {
@@ -231,7 +162,12 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 				is_capital(curr) {
 					token = Token.module_name
 				}
-				keywords.index(ident) != -1 {
+				ident in operators_str {
+					// custom string operators
+					token = Token.operator
+					bin = ident
+				}
+				ident in keywords {
 					token = Token.from(ident)!
 				}
 				else {}
@@ -327,6 +263,7 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 				idx:      idx
 				table:    table
 				token:    token
+				bin:      bin
 				pos_line: c.source.line
 				pos_char: c.source.char
 			}
@@ -412,7 +349,6 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 			return c.error('TODO implements for bigint and integer64')
 		}
 		else {
-			println(c.tokens)
 			return c.error('Unexpected token ${[c.source.current]} [${[c.source.current].bytestr()}]')
 		}
 	}

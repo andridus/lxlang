@@ -99,141 +99,8 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 			}
 			return c.parse_stmt()!
 		}
-		.def {
-			left := c.current_token.to_node()
-
-			mut args := []Arg{}
-			pos_line := c.current_token.pos_line
-			pos_char := c.current_token.pos_char
-			mut default_args := []NodeEl{}
-			c.match_next(.function_name)!
-			function_name := c.current_token
-			mut idx_function := 0
-			fun := c.get_function_value(function_name) or {
-				return c.parse_error('not found function', c.current_token)
-			}
-			idx_function = fun.idx
-			mut right := [c.current_token.to_node()]
-
-			match c.peak_token.token {
-				.typespec {
-					c.next_token()
-					c.match_next(.ident)!
-					c.put_returns_into_function(function_name.idx)!
-					c.next_token()
-				}
-				.lpar {
-					c.next_token()
-					mut default_args0 := []TokenRef{}
-					mut default_values0 := []NodeEl{}
-					for {
-						if c.peak_token.token == .rpar {
-							break
-						}
-						c.next_token()
-						arg := c.parse_expr()!
-						if arg is Node {
-							if ident := c.get_left_ident(arg.left) {
-								args << Arg{
-									ident:           ident
-									type:            arg.type_id
-									type_match:      arg.type_match
-									is_should_match: arg.is_should_match
-								}
-							}
-						}
-						if c.peak_token.token == .comma {
-							c.next_token()
-						}
-					}
-
-					for i0, key in default_args0 {
-						default_args[key.token] = default_values0[i0]
-					}
-					// maybe get the return
-					c.match_next(.rpar)!
-
-					if c.peak_token.token == .typespec {
-						c.match_next(.ident)!
-						token1 := c.current_token
-						if ident := c.idents[token1.idx] {
-							mut type_idx := c.types.len
-							type_idx0 := c.types.index(ident)
-							if type_idx0 != -1 {
-								type_idx = type_idx0
-							} else {
-								c.types << ident
-							}
-							c.functions[c.in_function_id].returns = type_idx
-						}
-					}
-				}
-				else {}
-			}
-
-			mut args_str := []string{}
-			for a in args {
-				if type_ := c.types[a.type] {
-					args_str << type_
-				}
-			}
-			hashed := args_str.join('|')
-			if _ := fun.matches[hashed] {
-				return error('Function ${fun.name} ${hashed} already defined')
-			} else {
-				if c.peak_token.token != .def {
-					c.functions[idx_function].matches[hashed] = FunctionMatch{
-						args:     args
-						pos_char: pos_char
-						pos_line: pos_line
-					}
-				}
-			}
-			mut right0 := []NodeEl{}
-			mut has_ending_function := true
-
-			match true {
-				c.peak_token.token == .comma {
-					c.next_token()
-					c.match_next(.do)!
-					c.match_next(.colon)!
-					c.next_token()
-					has_ending_function = false
-				}
-				c.peak_token.token == .do {
-					c.match_next(.do)!
-					c.next_token()
-				}
-				c.peak_token.token == .def {
-					c.functions[idx_function].args = args
-					mut functions := []NodeEl{}
-					for c.peak_token.token == .def {
-						functions << c.parse_stmt()!
-						// c.next_token()
-					}
-					// Should return all functions body
-					return functions[0]
-				}
-				else {
-					return error('missing function definition')
-				}
-			}
-			if c.current_token.token != .end {
-				do := TokenRef{
-					token: .do
-				}
-				parsed := c.parse_expr()!
-				right0 << parsed
-				right << NodeEl(Keyword{do, parsed})
-			}
-			if has_ending_function {
-				c.match_next(.end)!
-			}
-			c.functions_body[function_name.idx] = right0
-			return Node{
-				left:  left
-				right: right
-			}
+		.def, .defp {
+			return c.parse_function()!
 		}
 		else {
 			return c.parse_expr()!
@@ -247,6 +114,14 @@ fn (mut c Compiler) parse_expr() !NodeEl {
 	if c.peak_token.token == .operator {
 		c.next_token()
 		match c.current_token.bin {
+			'=>' {
+				c.next_token()
+				value := c.parse_expr()!
+				return Keyword{
+					key:   term
+					value: value
+				}
+			}
 			'=' {
 				// need to be check if is a matchble expression
 				c.next_token()
@@ -263,14 +138,26 @@ fn (mut c Compiler) parse_expr() !NodeEl {
 						0, ''
 					}
 				}
-				e := NodeEl(Node{
+				return NodeEl(Node{
 					left:            left
 					right:           term
 					is_should_match: true
 					type_id:         type_id
 					type_match:      type_match
 				})
-				return e
+			}
+			'in' {
+				in_tok := c.current_token
+				c.next_token()
+				right := c.parse_expr()!
+				return NodeEl(Node{
+					left:  in_tok
+					right: [term, right]
+				})
+			}
+			'->' {
+				// bypass to handle inside defined functions
+				return term
 			}
 			else {
 				return error('To do something with this operator `${c.current_token.bin}`')
@@ -289,6 +176,79 @@ fn (mut c Compiler) parse_term() !NodeEl {
 				}
 				right: [NodeEl(c.current_token)]
 			})
+		}
+		.not {
+			curr := c.current_token
+			c.next_token()
+			return NodeEl(Node{
+				left:  curr
+				right: c.parse_expr()!
+			})
+		}
+		.cond {
+			c.match_next(.do)!
+			mut clauses := []NodeEl{}
+			mut clauses_header := map[int]NodeEl{}
+			mut clauses_body := map[int][]NodeEl{}
+			mut i := 0
+			for c.peak_token.token != .end {
+				c.next_token()
+				clause := c.parse_expr()!
+
+				if c.current_token.token == .operator && c.current_token.bin == '->' {
+					i++
+					clauses_header[i] = clause
+				} else {
+					clauses_body[i] << clause
+				}
+			}
+			c.match_next(.end)!
+			for i0, clause in clauses_header {
+				clauses << Node{
+					left:  clause
+					right: clauses_body[i0]
+				}
+			}
+			return Node{
+				left:  TokenRef{
+					token: .cond
+				}
+				right: clauses
+			}
+		}
+		.percent {
+			// only for structs
+			c.match_next(.lcbr)!
+			mut keyword_list := []NodeEl{}
+			// c.next_token()
+			for c.peak_token.token != .rcbr {
+				c.next_token()
+				key_value := c.parse_expr()!
+				keyword_list << key_value
+				if c.peak_token.token == .comma {
+					c.next_token()
+				}
+			}
+			c.match_next(.rcbr)!
+			return Node{
+				left:  TokenRef{
+					token: .percent
+				}
+				right: keyword_list
+			}
+		}
+		.lsbr {
+			// lists
+			mut items := []NodeEl{}
+			for c.peak_token.token != .rsbr {
+				c.next_token()
+				items << c.parse_expr()!
+				if c.peak_token.token == .comma {
+					c.next_token()
+				}
+			}
+			c.match_next(.rsbr)!
+			return items
 		}
 		.arroba {
 			c.match_next(.ident)!
@@ -382,12 +342,12 @@ fn (mut c Compiler) parse_term() !NodeEl {
 			}
 		}
 		.caller_function {
-			caller := c.current_token
+			mut caller := c.current_token
 			if c.peak_token.token == .lpar {
 				c.next_token()
 
 				mut inside_parens := -1
-				mut args := []NodeEl{}
+				mut args := []Arg{}
 				for {
 					if c.current_token.token == .lpar {
 						inside_parens++
@@ -402,13 +362,39 @@ fn (mut c Compiler) parse_term() !NodeEl {
 						inside_parens--
 						c.next_token()
 					}
-					args << c.parse_expr()!
+					arg := c.parse_expr()!
+					if arg is Node {
+						if ident := c.get_left_ident(arg.left) {
+							match ident.token {
+								.percent {
+									// when is struct or map
+									args << Arg{
+										ident:             ident
+										idents_from_match: c.extract_idents_from_match_expr(arg.right)!
+										type:              arg.type_id
+										type_match:        arg.type_match
+										is_should_match:   arg.is_should_match
+										match_expr:        arg.right
+									}
+								}
+								else {
+									args << Arg{
+										ident:           ident
+										type:            arg.type_id
+										type_match:      arg.type_match
+										is_should_match: arg.is_should_match
+									}
+								}
+							}
+						}
+					}
 					c.next_token()
 				}
 
 				if caller_name := c.get_ident_value(caller) {
-					args_bin := args.map(|a| a.str()).join(',')
-					fn_hash := '${caller_name}/${args_bin}'
+					// args_bin := args.map(|a| a.clean_str()).join(',')
+					hash := c.make_args_match_hash(args, NodeEl{})
+					fn_hash := '${caller_name}/${hash}'
 					if idx0 := c.functions_idx[fn_hash] {
 						mut idx_caller := c.functions_caller.len
 						mut new := true
@@ -427,6 +413,8 @@ fn (mut c Compiler) parse_term() !NodeEl {
 								function_idx: idx0
 							}
 						}
+						caller.idx = idx0
+						caller.table = .functions_caller
 					} else {
 						mut idx_caller := c.functions_caller_undefined.len
 						mut new := true
@@ -434,6 +422,8 @@ fn (mut c Compiler) parse_term() !NodeEl {
 							idx_caller = idx_caller0
 							new = false
 						}
+						caller.idx = idx_caller
+						caller.table = .functions_caller_undefined
 						c.functions_caller_undefined_idx[fn_hash] = idx_caller
 						if new {
 							c.functions_caller_undefined << &CallerFunction{

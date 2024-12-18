@@ -8,7 +8,7 @@ fn (t TokenRef) str() string {
 	}
 }
 
-fn (t Token) str() string {
+fn (t Token) to_str() string {
 	return match t {
 		.nil { '${c(.dark_gray, .default, 'nil')}' }
 		.eof { 'EOF' }
@@ -16,6 +16,9 @@ fn (t Token) str() string {
 		.string { '${c(.green, .default, 'string')}' }
 		.import { '${c(.dark_yellow, .default, 'import')}' }
 		.alias { '${c(.dark_yellow, .default, 'alias')}' }
+		.cond { '${c(.dark_yellow, .default, 'cond')}' }
+		.when { '${c(.dark_yellow, .default, 'when')}' }
+		.not { '${c(.dark_yellow, .default, 'not')}' }
 		.lcbr { '${c(.white, .default, 'lcbr')}' }
 		.rcbr { '${c(.white, .default, 'rcbr')}' }
 		.lpar { '${c(.white, .default, 'lpar')}' }
@@ -103,6 +106,23 @@ fn (n NodeEl) to_str(idx int) string {
 	}
 }
 
+fn (n NodeEl) clean_str() string {
+	return match n {
+		TokenRef {
+			n.clean_str()
+		}
+		Node {
+			n.clean_str()
+		}
+		Keyword {
+			'${n.key.clean_str()}: ${n.value.clean_str()}'
+		}
+		[]NodeEl {
+			'[${n.map(it.clean_str()).join(', ')}]'
+		}
+	}
+}
+
 fn (n Node) to_str(idx int) string {
 	space := ' '.repeat(idx)
 	mut broken := ''
@@ -115,4 +135,24 @@ fn (n Node) to_str(idx int) string {
 
 fn (t TokenRef) to_str(idx int) string {
 	return t.str()
+}
+
+fn (t TokenRef) clean_str() string {
+	return t.token.str()
+}
+
+fn (n Node) clean_str() string {
+	left := n.left.clean_str()
+	right := n.right.clean_str()
+	return match true {
+		right == 'nil' {
+			left
+		}
+		left == '__aliases__' {
+			right
+		}
+		else {
+			'{${left}, ${n.attributes}, ${right}}'
+		}
+	}
 }

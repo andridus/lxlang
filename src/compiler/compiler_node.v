@@ -2,23 +2,23 @@ module compiler
 
 type NodeEl = TokenRef | Node | []NodeEl | Keyword
 
-// fn (n NodeEl) str() string {
-// 	return match n {
-// 		TokenRef {
-// 			n.token.str()
-// 		}
-// 		Node {
-// 			return '{${n.left.str()}, ${n.right.str()}}'
-// 		}
-// 		[]NodeEl {
-// 			'[${n.map(|a| a.str()).join(', ')}]'
-// 		}
-// 		Keyword {
-// 			'${n.key}: ${n.value}'
-// 		}
-// 	}
+fn (n NodeEl) str() string {
+	return match n {
+		TokenRef {
+			n.token.str()
+		}
+		Node {
+			'{${n.left.str()}, ${n.right.str()}}'
+		}
+		[]NodeEl {
+			'[${n.map(|a| a.str()).join(', ')}]'
+		}
+		Keyword {
+			'${n.key}: ${n.value}'
+		}
+	}
+}
 
-// }
 struct Keyword {
 	key   NodeEl
 	value NodeEl
@@ -36,11 +36,12 @@ struct Node {
 pub struct TokenRef {
 pub:
 	token    Token
-	idx      int
-	table    TableEnum
 	pos_line int
 	pos_char int
 	bin      string
+pub mut:
+	idx   int
+	table TableEnum
 }
 
 pub fn (t TokenRef) positions() (int, int) {
