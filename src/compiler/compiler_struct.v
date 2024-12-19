@@ -49,6 +49,9 @@ mut:
 	current_position               int = -1
 	current_line                   int = 1
 	current_token                  TokenRef
+	current_function_idx           int = -1
+	current_function_hashed        string
+	in_caller_function             bool
 	peak_token                     TokenRef
 	nodes                          NodeEl = c_nil
 	times                          map[string]time.Duration
@@ -57,19 +60,21 @@ mut:
 struct Function {
 	name string
 mut:
-	matches  map[string]FunctionMatch
-	starts   int
-	pos_line int
-	pos_char int
-	ends     int
-	returns  int
-	guard    NodeEl
-	location string
-	args     []Arg
-	idx      int
+	scoped_vars []TokenRef
+	matches     map[string]FunctionMatch
+	starts      int
+	pos_line    int
+	pos_char    int
+	ends        int
+	returns     int
+	guard       NodeEl
+	location    string
+	args        []Arg
+	idx         int
 }
 
 struct FunctionMatch {
+	scoped_vars  []string
 	default_args map[Token]NodeEl
 	guard        NodeEl
 	pos_line     int

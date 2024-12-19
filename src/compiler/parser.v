@@ -30,6 +30,14 @@ fn (mut c Compiler) match_next(token Token) ! {
 	}
 }
 
+fn (mut c Compiler) opt_match_next(token Token) bool {
+	if c.peak_token.token == token {
+		c.next_token()
+		return true
+	}
+	return false
+}
+
 fn (mut c Compiler) maybe_match_next(tokens []Token) !Token {
 	c.next_token()
 	if c.current_token.token in tokens {
@@ -110,7 +118,9 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 }
 
 fn (mut c Compiler) parse_expr() !NodeEl {
+	println('parse ${c.current_token}')
 	term := c.parse_term()!
+	println('term ----- ${term}')
 	mut is_should_match := false
 	mut type_id := 0
 	mut type_match := ''
@@ -145,6 +155,20 @@ fn (mut c Compiler) parse_expr() !NodeEl {
 				return NodeEl(Node{
 					left:            TokenRef{
 						token: .match
+					}
+					right:           [term, right]
+					is_should_match: is_should_match
+					type_id:         type_id
+					type_match:      type_match
+				})
+			}
+			'==' {
+				// need to be check if is a equals expressions
+				c.next_token()
+				right := c.parse_expr()!
+				return NodeEl(Node{
+					left:            TokenRef{
+						token: .eq
 					}
 					right:           [term, right]
 					is_should_match: is_should_match
@@ -243,7 +267,14 @@ fn (mut c Compiler) parse_term() !NodeEl {
 			}
 		}
 		.percent {
-			// only for structs
+			// only for maps
+			// c.next_token()
+			mut has_struct := false
+			mut struct_name := TokenRef{}
+			if c.opt_match_next(.module_name) {
+				has_struct = true
+				struct_name = c.current_token
+			}
 			c.match_next(.lcbr)!
 			mut keyword_list := []NodeEl{}
 			// c.next_token()
@@ -256,15 +287,17 @@ fn (mut c Compiler) parse_term() !NodeEl {
 				}
 			}
 			c.match_next(.rcbr)!
+			right := if has_struct { [NodeEl(struct_name), keyword_list] } else { keyword_list }
 			return Node{
 				left:  TokenRef{
 					token: .percent
 				}
-				right: keyword_list
+				right: right
 			}
 		}
 		.lsbr {
 			// lists
+			// TODO fix lists
 			mut items := []NodeEl{}
 			for c.peak_token.token != .rsbr {
 				c.next_token()
@@ -274,6 +307,20 @@ fn (mut c Compiler) parse_term() !NodeEl {
 				}
 			}
 			c.match_next(.rsbr)!
+			return items
+		}
+		.lcbr {
+			// tuples
+			// TODO fix tuples
+			mut items := []NodeEl{}
+			for c.peak_token.token != .rcbr {
+				c.next_token()
+				items << c.parse_expr()!
+				if c.peak_token.token == .comma {
+					c.next_token()
+				}
+			}
+			c.match_next(.rcbr)!
 			return items
 		}
 		.arroba {
@@ -368,103 +415,7 @@ fn (mut c Compiler) parse_term() !NodeEl {
 			}
 		}
 		.caller_function {
-			mut caller := c.current_token
-			if c.peak_token.token == .lpar {
-				c.next_token()
-
-				mut inside_parens := -1
-				mut args := []Arg{}
-				for {
-					if c.current_token.token == .lpar {
-						inside_parens++
-						c.next_token()
-					}
-
-					if c.current_token.token == .comma {
-						c.next_token()
-					} else if c.current_token.token == .rpar && inside_parens == 0 {
-						break
-					} else if c.current_token.token == .rpar {
-						inside_parens--
-						c.next_token()
-					}
-					arg := c.parse_expr()!
-					if arg is Node {
-						if ident := c.get_left_ident(arg.left) {
-							match ident.token {
-								.percent {
-									// when is struct or map
-									args << Arg{
-										ident:             ident
-										idents_from_match: c.extract_idents_from_match_expr(arg.right)!
-										type:              arg.type_id
-										type_match:        arg.type_match
-										is_should_match:   arg.is_should_match
-										match_expr:        arg.right
-									}
-								}
-								else {
-									args << Arg{
-										ident:           ident
-										type:            arg.type_id
-										type_match:      arg.type_match
-										is_should_match: arg.is_should_match
-									}
-								}
-							}
-						}
-					}
-					c.next_token()
-				}
-
-				if caller_name := c.get_ident_value(caller) {
-					// args_bin := args.map(|a| a.clean_str()).join(',')
-					hash := c.make_args_match_hash(args, NodeEl{})
-					fn_hash := '${caller_name}/${hash}'
-					if idx0 := c.functions_idx[fn_hash] {
-						mut idx_caller := c.functions_caller.len
-						mut new := true
-						if idx_caller0 := c.functions_caller_idx[fn_hash] {
-							idx_caller = idx_caller0
-							new = false
-						}
-						c.functions_caller_idx[fn_hash] = idx_caller
-						if new {
-							c.functions_caller << &CallerFunction{
-								name:         caller_name
-								hash:         fn_hash
-								line:         c.current_line
-								char:         c.source.char - caller_name.len
-								starts:       c.tokens.len
-								function_idx: idx0
-							}
-						}
-						caller.idx = idx0
-						caller.table = .functions_caller
-					} else {
-						mut idx_caller := c.functions_caller_undefined.len
-						mut new := true
-						if idx_caller0 := c.functions_caller_undefined_idx[fn_hash] {
-							idx_caller = idx_caller0
-							new = false
-						}
-						caller.idx = idx_caller
-						caller.table = .functions_caller_undefined
-						c.functions_caller_undefined_idx[fn_hash] = idx_caller
-						if new {
-							c.functions_caller_undefined << &CallerFunction{
-								name:   caller_name
-								hash:   fn_hash
-								line:   c.source.line
-								char:   c.source.char - caller_name.len
-								starts: c.tokens.len
-								// function_idx: idx0
-							}
-						}
-					}
-				}
-			}
-			return NodeEl(caller)
+			return c.parse_caller_function()!
 		}
 		.colon {
 			if c.peak_token.token == .ident {
@@ -487,6 +438,7 @@ fn (mut c Compiler) parse_term() !NodeEl {
 						break
 					}
 				}
+				println('end parse list ${keyword_list}')
 				// parse_list
 				return NodeEl(keyword_list)
 			}
@@ -520,10 +472,41 @@ fn (mut c Compiler) parse_term() !NodeEl {
 					type_id = c.types.index('nil')
 				}
 			}
+
+			if type_id != c.types.index('nil') && c.current_function_idx >= 0
+				&& c.peak_token.bin != '=' && !c.in_caller_function {
+				// TODO: check if var exists in scoped var
+				// else handle has caller function without args
+				if fun := c.functions[c.current_function_idx].matches[c.current_function_hashed] {
+					if v := c.get_ident_value(c.current_token) {
+						if v !in fun.scoped_vars {
+							c.in_caller_function = true
+							defer {
+								c.in_caller_function = false
+							}
+							println('SOMETHINGS ${v} ${fun.scoped_vars}')
+							return c.parse_caller_function()!
+						}
+					}
+				}
+			}
+
 			return NodeEl(Node{
 				left:    NodeEl(ident)
 				type_id: type_id
 			})
+		}
+		.operator {
+			match c.current_token.bin {
+				'^' {
+					eprintln('The ^ should be get the binded value')
+				}
+				else {
+					eprintln('Unhandled the operator `${c.current_token.bin}` and bypass')
+				}
+			}
+			c.next_token()
+			return c.parse_term()!
 		}
 		.float {
 			return NodeEl(Node{
@@ -545,7 +528,7 @@ fn (mut c Compiler) parse_term() !NodeEl {
 		}
 		else {}
 	}
-	return c.parse_error('parse_expr()', c.current_token)
+	return c.parse_error('parse_term()', c.current_token)
 }
 
 fn into_block(elems []NodeEl) NodeEl {

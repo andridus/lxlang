@@ -2,22 +2,22 @@ module compiler
 
 type NodeEl = TokenRef | Node | []NodeEl | Keyword
 
-fn (n NodeEl) str() string {
-	return match n {
-		TokenRef {
-			n.token.str()
-		}
-		Node {
-			'{${n.left.str()}, ${n.right.str()}}'
-		}
-		[]NodeEl {
-			'[${n.map(|a| a.str()).join(', ')}]'
-		}
-		Keyword {
-			'${n.key}: ${n.value}'
-		}
-	}
-}
+// fn (n NodeEl) str() string {
+// 	return match n {
+// 		TokenRef {
+// 			n.token.str()
+// 		}
+// 		Node {
+// 			'{${n.left.str()}, ${n.right.str()}}'
+// 		}
+// 		[]NodeEl {
+// 			'[${n.map(|a| a.str()).join(', ')}]'
+// 		}
+// 		Keyword {
+// 			'${n.key}: ${n.value}'
+// 		}
+// 	}
+// }
 
 struct Keyword {
 	key   NodeEl

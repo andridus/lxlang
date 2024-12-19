@@ -19,6 +19,7 @@ fn (t Token) to_str() string {
 		.cond { '${c(.dark_yellow, .default, 'cond')}' }
 		.when { '${c(.dark_yellow, .default, 'when')}' }
 		.not { '${c(.dark_yellow, .default, 'not')}' }
+		.eq { '${c(.dark_yellow, .default, 'eq')}' }
 		.lcbr { '${c(.white, .default, 'lcbr')}' }
 		.rcbr { '${c(.white, .default, 'rcbr')}' }
 		.lpar { '${c(.white, .default, 'lpar')}' }

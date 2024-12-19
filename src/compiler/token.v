@@ -41,6 +41,7 @@ pub enum Token {
 	float
 	do
 	end
+	eq
 	defmodule
 	def
 	defp

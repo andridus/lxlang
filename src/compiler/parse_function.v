@@ -9,12 +9,24 @@ fn (mut c Compiler) parse_function() !NodeEl {
 	fun := c.get_function_value(function_name) or {
 		return c.parse_error('not found function', c.current_token)
 	}
+
 	idx_function := fun.idx
 
 	mut right := [c.current_token.to_node()]
 	args := c.maybe_parse_args() or { []Arg{} }
 	type_idx := c.parse_typespec() or { 0 }
 	guard := c.parse_guard() or { c_nil }
+	mut vars := ['a', 'a.id', 'code', 'branch_country']
+	for arg in args {
+		if arg.is_should_match {
+			vars << arg.idents_from_match
+		} else {
+			if v := c.get_ident_value(arg.ident) {
+				vars << v
+			}
+		}
+	}
+
 	hashed := c.make_args_match_hash(args, guard)
 	// Define functions arity (function matches)
 	if _ := fun.matches[hashed] {
@@ -22,11 +34,12 @@ fn (mut c Compiler) parse_function() !NodeEl {
 			c.current_token)
 	} else if c.peak_token.token != .def {
 		c.functions[idx_function].matches[hashed] = FunctionMatch{
-			args:     args
-			guard:    guard
-			pos_char: pos_char
-			pos_line: pos_line
-			returns:  type_idx
+			args:        args
+			scoped_vars: vars
+			guard:       guard
+			pos_char:    pos_char
+			pos_line:    pos_line
+			returns:     type_idx
 		}
 	}
 	mut right0 := []NodeEl{}
@@ -58,7 +71,11 @@ fn (mut c Compiler) parse_function() !NodeEl {
 	}
 
 	if c.current_token.token != .end {
+		c.current_function_idx = fun.idx
+		c.current_function_hashed = hashed
 		parsed := c.parse_expr()!
+		c.current_function_idx = -1
+		c.current_function_hashed = ''
 		right0 << parsed
 		right << NodeEl(Keyword{TokenRef{
 			token: .do
@@ -165,3 +182,17 @@ fn (mut c Compiler) parse_guard() ?NodeEl {
 	}
 	return none
 }
+
+// fn extract_vars(hashed string) []string {
+// 	mut vars0 := []string{}
+// 	for v in hashed.split("|") {
+
+// 		println(v)
+// 	}
+// 	println('=---------------=\n\n')
+// 	// for v in vars {
+// 	// 	println(v)
+// 	// 	vars0 << v
+// 	// }
+// 	return vars0
+// }
