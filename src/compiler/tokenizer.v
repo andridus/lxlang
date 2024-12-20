@@ -204,6 +204,7 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 							c.functions_idx[ident] = idx
 							c.functions << &Function{
 								name:     ident
+								guard:    Nil{}
 								location: c.filesource
 								pos_line: c.source.line
 								pos_char: c.source.char - ident.len
@@ -357,7 +358,6 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 fn (mut c Compiler) add_token(t TokenRef) (bool, TokenRef) {
 	c.token_before = t
 	if !c.ignore_token {
-		// c.tokens << t
 		return true, t
 	}
 	return false, TokenRef{}

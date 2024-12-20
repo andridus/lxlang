@@ -48,39 +48,33 @@ fn (mut c Compiler) maybe_match_next(tokens []Token) !Token {
 	}
 }
 
-fn (mut c Compiler) parse_stmt() !NodeEl {
+fn (mut c Compiler) parse_stmt() !Node0 {
 	c.next_token()
 	match c.current_token.token {
 		.defmodule {
-			left := c.current_token.to_node()
+			left_node0 := c.current_token
 			c.match_next(.module_name)!
 			c.module_name = c.current_token
-			mut right := c.current_token.to_node()
+			right0_node0 := Node0(c.current_token)
 			c.match_next(.do)!
-			mut elems := []NodeEl{}
+			mut elems := []Node0{}
 			for !c.eof() {
 				if c.peak_token.token == .end {
 					break
 				}
-				right0 := c.parse_stmt()!
-				elems << right0
+				elems << c.parse_stmt()!
 			}
 			right1 := into_block(elems)
 			c.match_next(.end)!
-			return Node{
-				left:  left
-				right: [right,
-					[
-						NodeEl(Keyword{TokenRef{
-							token: .do
-						}, right1}),
-					]]
-			}
+			return Tuple3.new(left_node0, [right0_node0,
+				[
+					Tuple2.new(TokenRef{ token: .do }, right1),
+				]])
 		}
 		.import {
 			c.match_next(.module_name)!
 			token := c.current_token
-			mut args := []NodeEl{}
+			mut args := []Node0{}
 			for c.peak_token.token == .comma {
 				c.next_token()
 				c.next_token() // fix this double caller
@@ -95,7 +89,7 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 		.alias {
 			c.match_next(.module_name)!
 			token := c.current_token
-			mut args := []NodeEl{}
+			mut args := []Node0{}
 			for c.peak_token.token == .comma {
 				c.next_token()
 				c.next_token() // fix this double caller
@@ -117,24 +111,21 @@ fn (mut c Compiler) parse_stmt() !NodeEl {
 	return error('unhandled this error')
 }
 
-fn (mut c Compiler) parse_expr() !NodeEl {
-	println('parse ${c.current_token}')
+fn (mut c Compiler) parse_expr() !Node0 {
 	term := c.parse_term()!
-	println('term ----- ${term}')
 	mut is_should_match := false
 	mut type_id := 0
 	mut type_match := ''
 	if c.in_function_args {
-		match term {
-			Node {
-				type_id, type_match = if type_match0 := c.to_value_str(term.left) {
-					term.type_id, type_match0
-				} else {
-					term.type_id, ''
-				}
+		if attrs := c.mount_match(term) {
+			type_id, type_match = if type_match0 := c.to_value_str(term.left()) {
+				attrs.type_id, type_match0
+			} else {
+				attrs.type_id, ''
+			}
+			if type_match.len > 0 {
 				is_should_match = true
 			}
-			else {}
 		}
 	}
 	if c.peak_token.token == .operator {
@@ -143,57 +134,41 @@ fn (mut c Compiler) parse_expr() !NodeEl {
 			'=>' {
 				c.next_token()
 				value := c.parse_expr()!
-				return Keyword{
-					key:   term
-					value: value
-				}
+				return Tuple3.new(term, value)
 			}
 			'=' {
 				// need to be check if is a matchble expression
 				c.next_token()
+
 				right := c.parse_expr()!
-				return NodeEl(Node{
-					left:            TokenRef{
-						token: .match
-					}
-					right:           [term, right]
+				attrs := NodeAttributes{
 					is_should_match: is_should_match
 					type_id:         type_id
 					type_match:      type_match
-				})
+				}
+				return Tuple3.new_attrs(TokenRef{ token: .match }, [term, right], attrs)
 			}
 			'==' {
 				// need to be check if is a equals expressions
 				c.next_token()
 				right := c.parse_expr()!
-				return NodeEl(Node{
-					left:            TokenRef{
-						token: .eq
-					}
-					right:           [term, right]
+				attrs := NodeAttributes{
 					is_should_match: is_should_match
 					type_id:         type_id
 					type_match:      type_match
-				})
+				}
+				return Tuple3.new_attrs(TokenRef{ token: .eq }, [term, right], attrs)
 			}
 			'in' {
 				in_tok := c.current_token
 				c.next_token()
 				right := c.parse_expr()!
-				return NodeEl(Node{
-					left:  in_tok
-					right: [term, right]
-				})
+				return Tuple3.new(in_tok, [term, right])
 			}
 			'|>' {
 				c.next_token()
 				right := c.parse_expr()!
-				return NodeEl(Node{
-					left:  TokenRef{
-						token: .pipe
-					}
-					right: [term, right]
-				})
+				return Tuple3.new(TokenRef{ token: .pipe }, [term, right])
 			}
 			'->' {
 				// bypass to handle inside defined functions
@@ -204,42 +179,33 @@ fn (mut c Compiler) parse_expr() !NodeEl {
 			}
 		}
 	} else if is_should_match {
-		return NodeEl(Node{
-			left:            TokenRef{
-				token: .match
-			}
-			right:           [term]
+		attrs := NodeAttributes{
 			is_should_match: is_should_match
 			type_id:         type_id
 			type_match:      type_match
-		})
+		}
+		return Tuple3.new_attrs(TokenRef{ token: .match }, [term], attrs)
 	}
 	return term
 }
 
-fn (mut c Compiler) parse_term() !NodeEl {
+fn (mut c Compiler) parse_term() !Node0 {
 	match c.current_token.token {
 		.module_name {
-			return NodeEl(Node{
-				left:  TokenRef{
-					token: .__aliases__
-				}
-				right: [NodeEl(c.current_token)]
-			})
+			return Tuple3.new(TokenRef{ token: .__aliases__ }, [
+				Node0(c.current_token),
+			])
 		}
 		.not {
 			curr := c.current_token
 			c.next_token()
-			return NodeEl(Node{
-				left:  curr
-				right: c.parse_expr()!
-			})
+			return Tuple3.new(curr, c.parse_expr()!)
 		}
 		.cond {
 			c.match_next(.do)!
-			mut clauses := []NodeEl{}
-			mut clauses_header := map[int]NodeEl{}
-			mut clauses_body := map[int][]NodeEl{}
+			mut clauses := []Node0{}
+			mut clauses_header := map[int]Node0{}
+			mut clauses_body := map[int][]Node0{}
 			mut i := 0
 			for c.peak_token.token != .end {
 				c.next_token()
@@ -254,17 +220,9 @@ fn (mut c Compiler) parse_term() !NodeEl {
 			}
 			c.match_next(.end)!
 			for i0, clause in clauses_header {
-				clauses << Node{
-					left:  clause
-					right: clauses_body[i0]
-				}
+				clauses << Tuple3.new(clause, clauses_body[i0])
 			}
-			return Node{
-				left:  TokenRef{
-					token: .cond
-				}
-				right: clauses
-			}
+			return Tuple3.new(TokenRef{ token: .cond }, clauses)
 		}
 		.percent {
 			// only for maps
@@ -276,7 +234,7 @@ fn (mut c Compiler) parse_term() !NodeEl {
 				struct_name = c.current_token
 			}
 			c.match_next(.lcbr)!
-			mut keyword_list := []NodeEl{}
+			mut keyword_list := []Node0{}
 			// c.next_token()
 			for c.peak_token.token != .rcbr {
 				c.next_token()
@@ -287,18 +245,13 @@ fn (mut c Compiler) parse_term() !NodeEl {
 				}
 			}
 			c.match_next(.rcbr)!
-			right := if has_struct { [NodeEl(struct_name), keyword_list] } else { keyword_list }
-			return Node{
-				left:  TokenRef{
-					token: .percent
-				}
-				right: right
-			}
+			right := if has_struct { [Node0(struct_name), keyword_list] } else { keyword_list }
+			return Tuple3.new(TokenRef{ token: .percent }, right)
 		}
 		.lsbr {
 			// lists
 			// TODO fix lists
-			mut items := []NodeEl{}
+			mut items := []Node0{}
 			for c.peak_token.token != .rsbr {
 				c.next_token()
 				items << c.parse_expr()!
@@ -312,7 +265,7 @@ fn (mut c Compiler) parse_term() !NodeEl {
 		.lcbr {
 			// tuples
 			// TODO fix tuples
-			mut items := []NodeEl{}
+			mut items := []Node0{}
 			for c.peak_token.token != .rcbr {
 				c.next_token()
 				items << c.parse_expr()!
@@ -332,12 +285,10 @@ fn (mut c Compiler) parse_term() !NodeEl {
 						c.match_next(.string)!
 						if moduledoc := c.get_string_value(c.current_token) {
 							c.moduledoc = moduledoc
-							return NodeEl(Node{
-								left:  TokenRef{
-									token: .moduledoc
-								}
-								right: [NodeEl(token), c.current_token]
-							})
+							return Tuple3.new(TokenRef{ token: .moduledoc }, [
+								Node0(token),
+								c.current_token,
+							])
 						}
 					}
 					'doc' {
@@ -349,19 +300,19 @@ fn (mut c Compiler) parse_term() !NodeEl {
 						mut parse_until_function := true
 						for parse_until_function {
 							node0 := c.parse_stmt()!
-							if node0 is Node {
-								n := node0 as Node
-								n_left := n.left as TokenRef
-								if n_left.token == .def {
-									parse_until_function = false
-									n_right := n.right as []NodeEl
-									n_right0 := n_right[0] as Node
-									n_right0_left := n_right0.left as TokenRef
-									if function := c.get_function_value(n_right0_left) {
-										c.function_doc[function.name] = docstr
-										return node0
-									} else {
-										return error('not found function')
+							n_left := node0.left()
+							if n_left is TokenRef && n_left.token == .def {
+								parse_until_function = false
+								n_right := node0.right().as_list()
+								if n_right.len == 2 {
+									n_right0_left := n_right[0].left()
+									if n_right0_left is TokenRef {
+										if function := c.get_function_value(n_right0_left) {
+											c.function_doc[function.name] = docstr
+											return node0
+										} else {
+											return error('not found function')
+										}
 									}
 								}
 							}
@@ -391,7 +342,7 @@ fn (mut c Compiler) parse_term() !NodeEl {
 							}
 						}
 						token := c.current_token
-						return NodeEl(token)
+						return Node0(token)
 					}
 					else {
 						// ident := c.parse_expr()!
@@ -407,7 +358,7 @@ fn (mut c Compiler) parse_term() !NodeEl {
 						// c.match_next(.string)!
 						// if moduledoc := c.get_string_value(c.current_token) {
 						// 	c.moduledoc = moduledoc
-						// 	return NodeEl(Node{left: TokenRef{token: .moduledoc}, right: [NodeEl(token), c.current_token]})
+						// 	return Node0(Node{left: TokenRef{token: .moduledoc}, right: [Node0(token), c.current_token]})
 						// }
 						// return c.parse_error_custom('not defined parse custom attribute for `${c.get_ident_value(c.current_token)}`', c.current_token)
 					}
@@ -420,27 +371,27 @@ fn (mut c Compiler) parse_term() !NodeEl {
 		.colon {
 			if c.peak_token.token == .ident {
 				c.next_token()
-				return NodeEl(c.current_token)
+				return Node0(c.current_token)
 			}
 		}
 		.ident {
-			ident := c.current_token
+			mut ident := c.current_token
 			mut type_id := 0
 			if c.peak_token.token == .colon {
 				// is list
-				mut keyword_list := []NodeEl{}
+				mut keyword_list := []Node0{}
 				for {
 					c.next_token()
 					c.next_token()
 					value := c.parse_expr()!
-					keyword_list << NodeEl(Keyword{ident, value})
+					keyword_list << Tuple2.new(ident, value)
 					if c.peak_token.token != .comma {
 						break
 					}
 				}
 				println('end parse list ${keyword_list}')
 				// parse_list
-				return NodeEl(keyword_list)
+				return Node0(keyword_list)
 			}
 			if c.peak_token.token == .typespec {
 				c.next_token()
@@ -461,11 +412,10 @@ fn (mut c Compiler) parse_term() !NodeEl {
 				c.next_token()
 				c.next_token()
 				value := c.parse_expr()!
-				return NodeEl(Node{
-					left:    NodeEl(ident)
-					right:   value
+				attrs := NodeAttributes{
 					type_id: type_id
-				})
+				}
+				return Tuple3.new_attrs(ident, value, attrs)
 			}
 			if nil_ := c.get_ident_value(ident) {
 				if nil_ == 'nil' {
@@ -484,17 +434,13 @@ fn (mut c Compiler) parse_term() !NodeEl {
 							defer {
 								c.in_caller_function = false
 							}
-							println('SOMETHINGS ${v} ${fun.scoped_vars}')
 							return c.parse_caller_function()!
 						}
 					}
 				}
 			}
-
-			return NodeEl(Node{
-				left:    NodeEl(ident)
-				type_id: type_id
-			})
+			ident.type_id = type_id
+			return ident
 		}
 		.operator {
 			match c.current_token.bin {
@@ -509,38 +455,35 @@ fn (mut c Compiler) parse_term() !NodeEl {
 			return c.parse_term()!
 		}
 		.float {
-			return NodeEl(Node{
-				left:    NodeEl(c.current_token)
-				type_id: c.types.index('float')
-			})
+			mut ident := c.current_token
+			ident.type_id = c.types.index('float')
+			return ident
 		}
 		.integer {
-			return NodeEl(Node{
-				left:    NodeEl(c.current_token)
-				type_id: c.types.index('integer')
-			})
+			mut ident := c.current_token
+			ident.type_id = c.types.index('integer')
+			return ident
 		}
 		.string {
-			return NodeEl(Node{
-				left:    NodeEl(c.current_token)
-				type_id: c.types.index('string')
-			})
+			mut ident := c.current_token
+			ident.type_id = c.types.index('string')
+			return ident
 		}
 		else {}
 	}
 	return c.parse_error('parse_term()', c.current_token)
 }
 
-fn into_block(elems []NodeEl) NodeEl {
+fn into_block(elems []Node0) Node0 {
 	if elems.len == 1 {
 		return elems[0]
 	} else {
-		return NodeEl(Node{
+		return Tuple3{
 			left:  TokenRef{
 				token: .__block__
 			}
 			right: elems
-		})
+		}
 	}
 }
 

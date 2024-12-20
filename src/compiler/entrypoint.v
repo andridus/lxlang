@@ -88,7 +88,7 @@ pub fn (mut c Compiler) generate_beam() !Return {
 			Return(c.beam_to_file(start)!)
 		}
 		.ast {
-			Return(c.nodes.to_str(0))
+			Return(c.nodes.to_str())
 		}
 	}
 	return result

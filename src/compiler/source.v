@@ -107,21 +107,21 @@ fn (mut s Source) get_next_ident() !string {
 
 fn (mut s Source) get_next_number() !([]u8, Number) {
 	mut kind := Number.integer
-	mut numbers := []u8{}
+	mut numbers := [s.current]
 	for !s.eof() {
 		match true {
-			is_digit(s.current) {
-				numbers << s.current
+			is_digit(s.peak) {
+				numbers << s.peak
 			}
-			s.current == `_` {
+			s.peak == `_` {
 				s.next()
 				continue
 			}
-			s.current == `.` && kind != .float {
-				numbers << s.current
+			s.peak == `.` && kind != .float {
+				numbers << s.peak
 				kind = .float
 			}
-			s.current == `.` && kind == .float {
+			s.peak == `.` && kind == .float {
 				return error('invalid number')
 			}
 			else {

@@ -1,7 +1,9 @@
 module compiler
 
-fn (mut c Compiler) parse_function() !NodeEl {
-	left := c.current_token.to_node()
+const token_nil = &TokenRef{}
+
+fn (mut c Compiler) parse_function() !Node0 {
+	left := c.current_token
 	pos_line := c.current_token.pos_line
 	pos_char := c.current_token.pos_char
 	c.match_next(.function_name)!
@@ -12,21 +14,23 @@ fn (mut c Compiler) parse_function() !NodeEl {
 
 	idx_function := fun.idx
 
-	mut right := [c.current_token.to_node()]
+	mut right := []Node0{}
+	right << c.current_token
 	args := c.maybe_parse_args() or { []Arg{} }
 	type_idx := c.parse_typespec() or { 0 }
-	guard := c.parse_guard() or { c_nil }
-	mut vars := ['a', 'a.id', 'code', 'branch_country']
+	guard := c.parse_guard() or { Node0(Nil{}) }
+	mut vars := []string{}
 	for arg in args {
 		if arg.is_should_match {
-			vars << arg.idents_from_match
+			for v in arg.idents_from_match {
+				vars << v.replace('=', '')
+			}
 		} else {
 			if v := c.get_ident_value(arg.ident) {
 				vars << v
 			}
 		}
 	}
-
 	hashed := c.make_args_match_hash(args, guard)
 	// Define functions arity (function matches)
 	if _ := fun.matches[hashed] {
@@ -42,7 +46,7 @@ fn (mut c Compiler) parse_function() !NodeEl {
 			returns:     type_idx
 		}
 	}
-	mut right0 := []NodeEl{}
+	mut right0 := []Node0{}
 	mut function_has_end_token := true
 	match true {
 		c.peak_token.token == .comma {
@@ -58,7 +62,7 @@ fn (mut c Compiler) parse_function() !NodeEl {
 		}
 		c.peak_token.token == .def {
 			c.functions[idx_function].args = args
-			mut functions := []NodeEl{}
+			mut functions := []Node0{}
 			for c.peak_token.token == .def {
 				functions << c.parse_stmt()!
 			}
@@ -77,26 +81,21 @@ fn (mut c Compiler) parse_function() !NodeEl {
 		c.current_function_idx = -1
 		c.current_function_hashed = ''
 		right0 << parsed
-		right << NodeEl(Keyword{TokenRef{
-			token: .do
-		}, parsed})
+		right << Tuple2.new(TokenRef{ token: .do }, parsed)
 	}
 	if function_has_end_token {
 		c.match_next(.end)!
 	}
 	c.functions_body[function_name.idx] = right0
-	return Node{
-		left:  left
-		right: right
-	}
+	return Tuple3.new(left, right)
 }
 
 fn (mut c Compiler) maybe_parse_args() ?[]Arg {
 	if c.peak_token.token == .lpar {
 		mut args := []Arg{}
-		mut default_args := []NodeEl{}
+		mut default_args := []Node0{}
 		mut default_args0 := []TokenRef{}
-		mut default_values0 := []NodeEl{}
+		mut default_values0 := []Node0{}
 		c.in_function_args = true
 		defer {
 			c.in_function_args = false
@@ -107,41 +106,39 @@ fn (mut c Compiler) maybe_parse_args() ?[]Arg {
 				break
 			}
 			c.next_token()
-			arg := c.parse_expr() or { return none }
-			if arg is Node {
-				if ident := c.get_left_ident(arg.left) {
-					match ident.token {
-						.match {
-							// when is struct or map
-							arg_right := arg.right as []NodeEl
-							ident0, right := if arg_right.len == 2 {
-								ident0 := c.get_left_ident(arg_right[1]) or { TokenRef{} }
-								ident0, arg_right[0]
-							} else {
-								TokenRef{}, arg_right[0]
+			arg := c.parse_expr() or {
+				println('err: ${err.msg()}')
+				exit(1)
+			}
+			if ident := c.get_left_ident(arg.left()) {
+				attrs := arg.get_attributes() or { NodeAttributes{} }
+
+				match ident.token {
+					.match {
+						// when is struct or map
+						arg_right := arg.right()
+						args << Arg{
+							ident:             token_nil
+							idents_from_match: c.extract_idents_from_match_expr(arg_right) or {
+								return none
 							}
-							args << Arg{
-								ident:             ident0
-								idents_from_match: c.extract_idents_from_match_expr(right) or {
-									return none
-								}
-								type:              arg.type_id
-								type_match:        arg.type_match
-								is_should_match:   arg.is_should_match
-								match_expr:        arg.right
-							}
+							type:              attrs.type_id
+							type_match:        attrs.type_match
+							is_should_match:   attrs.is_should_match
+							match_expr:        arg_right
 						}
-						else {
-							args << Arg{
-								ident:           ident
-								type:            arg.type_id
-								type_match:      arg.type_match
-								is_should_match: arg.is_should_match
-							}
+					}
+					else {
+						args << Arg{
+							ident:           ident
+							type:            attrs.type_id
+							type_match:      attrs.type_match
+							is_should_match: attrs.is_should_match
 						}
 					}
 				}
 			}
+
 			if c.peak_token.token == .comma {
 				c.next_token()
 			}
@@ -150,6 +147,7 @@ fn (mut c Compiler) maybe_parse_args() ?[]Arg {
 			default_args[key.token] = default_values0[i0]
 		}
 		c.match_next(.rpar) or { return none }
+
 		return args
 	}
 	return none
@@ -174,7 +172,7 @@ fn (mut c Compiler) parse_typespec() ?int {
 	return none
 }
 
-fn (mut c Compiler) parse_guard() ?NodeEl {
+fn (mut c Compiler) parse_guard() ?Node0 {
 	if c.peak_token.token == .when {
 		c.next_token()
 		c.next_token()
@@ -182,17 +180,3 @@ fn (mut c Compiler) parse_guard() ?NodeEl {
 	}
 	return none
 }
-
-// fn extract_vars(hashed string) []string {
-// 	mut vars0 := []string{}
-// 	for v in hashed.split("|") {
-
-// 		println(v)
-// 	}
-// 	println('=---------------=\n\n')
-// 	// for v in vars {
-// 	// 	println(v)
-// 	// 	vars0 << v
-// 	// }
-// 	return vars0
-// }

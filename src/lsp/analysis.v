@@ -33,26 +33,28 @@ fn (mut s State) update_document(document string, text string) {
 
 fn (mut s State) hover(hover_params HoverParams) string {
 	uri := hover_params.text_document.uri
-	c := s.documents[uri]
-	mut before_char_token := 0
-	for tk in c.get_tokens() {
-		line, character := tk.positions()
-		if line == hover_params.position.line {
-			if hover_params.position.character == character {
-				if tk.token == .function_name {
-					if doc := c.get_function_doc(tk) {
-						return new_hover_result(doc)
+	if c := s.documents[uri] {
+		mut before_char_token := 0
+		for tk in c.get_tokens() {
+			line, character := tk.positions()
+			if line == hover_params.position.line {
+				if hover_params.position.character == character {
+					if tk.token == .function_name {
+						if doc := c.get_function_doc(tk) {
+							return new_hover_result(doc)
+						}
 					}
-				}
-			} else if before_char_token != 0 && hover_params.position.character > before_char_token
-				&& hover_params.position.character < character {
-				if tk.token == .function_name {
-					if doc := c.get_function_doc(tk) {
-						return new_hover_result(doc)
+				} else if before_char_token != 0
+					&& hover_params.position.character > before_char_token
+					&& hover_params.position.character < character {
+					if tk.token == .function_name {
+						if doc := c.get_function_doc(tk) {
+							return new_hover_result(doc)
+						}
 					}
+				} else {
+					before_char_token = character
 				}
-			} else {
-				before_char_token = character
 			}
 		}
 	}

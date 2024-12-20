@@ -365,10 +365,10 @@ fn (mut c Compiler) function_info(b &Beam, func Function) []BeamInstruction {
 	return [line, func_info]
 }
 
-fn (mut c Compiler) function_body(func_node NodeEl) []BeamInstruction {
+fn (mut c Compiler) function_body(func_node Node0) []BeamInstruction {
 	mut instructions := []BeamInstruction{}
 	match func_node {
-		[]NodeEl {
+		[]Node0 {
 			for node in func_node {
 				instructions << c.function_body(node)
 			}
@@ -399,8 +399,7 @@ fn (mut c Compiler) function_body(func_node NodeEl) []BeamInstruction {
 				.functions_caller_undefined {}
 			}
 		}
-		Keyword {}
-		Node {}
+		else {}
 	}
 	instructions << BeamInstruction{
 		inst: .return

@@ -7,10 +7,10 @@ fn (c Compiler) get_module_name() !string {
 	return error('no module name defined')
 }
 
-fn (c Compiler) get_left_ident(n NodeEl) ?TokenRef {
+fn (c Compiler) get_left_ident(n Node0) ?&TokenRef {
 	match n {
-		Node {
-			return c.get_left_ident(n.left)
+		[]Node0 {
+			return c.get_left_ident(n.left())
 		}
 		TokenRef {
 			return n
@@ -21,24 +21,25 @@ fn (c Compiler) get_left_ident(n NodeEl) ?TokenRef {
 	}
 }
 
-fn (c Compiler) extract_idents_from_match_expr(expr NodeEl) ![]string {
+fn (c Compiler) extract_idents_from_match_expr(expr Node0) ![]string {
 	mut idents := []string{}
 	match expr {
-		[]NodeEl {
+		[]Node0 {
 			for node in expr {
 				idents << c.extract_idents_from_match_expr(node)!
 			}
 		}
-		Node {
-			idents << c.extract_idents_from_match_expr(expr.left)!
-			idents << c.extract_idents_from_match_expr(expr.right)!
+		Tuple3 {
+			for node in expr.as_list() {
+				idents << c.extract_idents_from_match_expr(node)!
+			}
 		}
-		Keyword {
+		Tuple2 {
 			mut key := ''
-			if key0 := c.extract_value_str_from_node_el(expr.key) {
+			if key0 := c.extract_value_str_from_node_el(expr.left()) {
 				key = '[${key0}]'
 			}
-			for value in c.extract_idents_from_match_expr(expr.value)! {
+			for value in c.extract_idents_from_match_expr(expr.right())! {
 				idents << '${key}${value}'
 			}
 		}
@@ -57,16 +58,14 @@ fn (c Compiler) extract_idents_from_match_expr(expr NodeEl) ![]string {
 				else {}
 			}
 		}
+		else {}
 	}
 	idents.sort()
 	return idents
 }
 
-fn (c Compiler) extract_value_str_from_node_el(expr NodeEl) ?string {
+fn (c Compiler) extract_value_str_from_node_el(expr Node0) ?string {
 	match expr {
-		Node {
-			return c.extract_value_str_from_node_el(expr.left)
-		}
 		TokenRef {
 			if expr.token == .string {
 				if v := c.get_string_value(expr) {
@@ -79,12 +78,14 @@ fn (c Compiler) extract_value_str_from_node_el(expr NodeEl) ?string {
 				}
 			}
 		}
-		else {}
+		else {
+			return c.extract_value_str_from_node_el(expr.left())
+		}
 	}
 	return none
 }
 
-fn (c Compiler) make_hash_from_node_el(guard NodeEl) string {
+fn (c Compiler) make_hash_from_node_el(guard Node0) string {
 	match guard {
 		TokenRef {
 			match guard.token {
@@ -101,18 +102,20 @@ fn (c Compiler) make_hash_from_node_el(guard NodeEl) string {
 				}
 			}
 		}
-		Node {
-			left_hash := c.make_hash_from_node_el(guard.left)
-			right_hash := c.make_hash_from_node_el(guard.right)
+		Nil {
+			return ''
+		}
+		else {
+			left_hash := c.make_hash_from_node_el(guard.left())
+			right_hash := c.make_hash_from_node_el(guard.right())
 			return '${left_hash}_${right_hash}'
 		}
-		else {}
 	}
 
 	return ''
 }
 
-fn (c Compiler) make_args_match_hash(args []Arg, guard NodeEl) string {
+fn (c Compiler) make_args_match_hash(args []Arg, guard Node0) string {
 	guard_hash := c.make_hash_from_node_el(guard)
 	mut args_str := []string{}
 	for a in args {
@@ -127,33 +130,58 @@ fn (c Compiler) make_args_match_hash(args []Arg, guard NodeEl) string {
 				}
 			}
 			args_str << str
+		} else if a.type_match.len > 0 {
+			args_str << a.type_match
 		} else if type_ := c.types[a.type] {
 			args_str << type_
 		}
 	}
 	hashed := args_str.join('|')
-	if guard_hash == 'nil' {
+	if guard_hash.len == 0 {
 		return '${hashed}'
 	}
 	return '${hashed}\$(${guard_hash})'
 }
 
-fn (c Compiler) to_value_str(n NodeEl) ?string {
-	match n {
-		TokenRef {
-			tk := n as TokenRef
-			val := match tk.token {
-				.string { c.get_string_value(tk) }
-				.integer { c.get_integer_value(tk).str() }
-				.float { c.get_integer_value(tk).str() }
-				else { '' }
+fn (c Compiler) mount_match(tk Node0) ?NodeAttributes {
+	if attrs := tk.get_attributes() {
+		if value := c.to_value_str(tk) {
+			return NodeAttributes{
+				...attrs
+				type_match:      value
+				is_should_match: true
+				type_id:         attrs.type_id
 			}
-			return val
-		}
-		else {
-			return ''
+		} else {
+			return attrs
 		}
 	}
+	return none
+}
+
+fn (c Compiler) to_value_str(n Node0) ?string {
+	match n {
+		TokenRef {
+			match n.token {
+				.string {
+					c.get_string_value(n)
+				}
+				.integer {
+					if v := c.get_integer_value(n) {
+						return v.str()
+					}
+				}
+				.float {
+					if v := c.get_integer_value(n) {
+						return v.str()
+					}
+				}
+				else {}
+			}
+		}
+		else {}
+	}
+	return none
 }
 
 pub fn (c Compiler) get_function_value(t TokenRef) ?Function {

@@ -1,6 +1,6 @@
 module compiler
 
-fn (mut c Compiler) parse_caller_function() !NodeEl {
+fn (mut c Compiler) parse_caller_function() !Node0 {
 	mut caller := c.current_token
 	c.next_token()
 
@@ -21,27 +21,26 @@ fn (mut c Compiler) parse_caller_function() !NodeEl {
 			continue
 		}
 		arg := c.parse_expr()!
-		if arg is Node {
-			if ident := c.get_left_ident(arg.left) {
-				match ident.token {
-					.percent {
-						// when is struct or map
-						args << Arg{
-							ident:             ident
-							idents_from_match: c.extract_idents_from_match_expr(arg.right)!
-							type:              arg.type_id
-							type_match:        arg.type_match
-							is_should_match:   arg.is_should_match
-							match_expr:        arg.right
-						}
+		if ident := c.get_left_ident(arg.left()) {
+			attrs := arg.get_attributes() or { NodeAttributes{} }
+			match ident.token {
+				.percent {
+					// when is struct or map
+					args << Arg{
+						ident:             ident
+						idents_from_match: c.extract_idents_from_match_expr(arg.right())!
+						match_expr:        arg.right()
+						type:              attrs.type_id
+						type_match:        attrs.type_match
+						is_should_match:   attrs.is_should_match
 					}
-					else {
-						args << Arg{
-							ident:           ident
-							type:            arg.type_id
-							type_match:      arg.type_match
-							is_should_match: arg.is_should_match
-						}
+				}
+				else {
+					args << Arg{
+						ident:           ident
+						type:            attrs.type_id
+						type_match:      attrs.type_match
+						is_should_match: attrs.is_should_match
 					}
 				}
 			}
@@ -57,7 +56,7 @@ fn (mut c Compiler) parse_caller_function() !NodeEl {
 
 	if caller_name := c.get_ident_value(caller) {
 		// args_bin := args.map(|a| a.clean_str()).join(',')
-		hash := c.make_args_match_hash(args, NodeEl{})
+		hash := c.make_args_match_hash(args, Nil{})
 		fn_hash := '${caller_name}/${hash}'
 		if idx0 := c.functions_idx[fn_hash] {
 			mut idx_caller := c.functions_caller.len
@@ -101,6 +100,5 @@ fn (mut c Compiler) parse_caller_function() !NodeEl {
 			}
 		}
 	}
-	println('enf')
-	return NodeEl(caller)
+	return caller
 }
