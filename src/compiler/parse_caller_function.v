@@ -1,23 +1,28 @@
 module compiler
 
 fn (mut c Compiler) parse_caller_function() !Node0 {
-	mut caller := c.current_token
+	mut caller := TokenRef{
+		...c.current_token
+	}
 	args := c.parse_function_caller_args()!
 	c.update_caller_function(mut caller, args)!
+
 	return caller
 }
 
 fn (mut c Compiler) parse_function_caller_args() ![]Arg {
 	mut inside_parens := 0
 	mut args := []Arg{}
-
 	for {
 		if c.peak_token.token == .lpar {
 			inside_parens++
 			c.next_token()
+			if c.peak_token.token == .rpar && inside_parens == 1 {
+				c.next_token()
+				break
+			}
 			c.next_token()
 		}
-
 		arg := c.parse_expr()!
 		if ident := c.get_left_ident(arg.left()) {
 			attrs := arg.get_attributes() or { NodeAttributes{} }

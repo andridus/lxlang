@@ -23,21 +23,29 @@ fn (mut c Compiler) parse_stmt() !Node0 {
 }
 
 fn (mut c Compiler) parse_expr() !Node0 {
-	term := c.parse_term()!
+	mut term := c.parse_term()!
 	mut is_should_match := false
 	mut type_id := 0
 	mut type_match := ''
 	if c.in_function_args {
 		if attrs := c.mount_match(term) {
-			type_id, type_match = if type_match0 := c.to_value_str(term.left()) {
-				attrs.type_id, type_match0
-			} else {
-				attrs.type_id, ''
-			}
-			if type_match.len > 0 {
+			if attrs.type_match.len > 0 {
 				is_should_match = true
+				type_id = attrs.type_id
+				type_match = attrs.type_match
 			}
 		}
+	}
+	if is_should_match {
+		attrs := NodeAttributes{
+			is_should_match: is_should_match
+			type_id:         type_id
+			type_match:      type_match
+		}
+		left_term := term.left()
+		right_term := term.right()
+		match_term := Tuple2.new(TokenRef{ token: .match }, right_term)
+		term = Tuple3.new_attrs(left_term, match_term, attrs)
 	}
 	if c.peak_token.token == .operator {
 		c.next_token()
@@ -69,7 +77,9 @@ fn (mut c Compiler) parse_expr() !Node0 {
 				return Tuple3.new_attrs(TokenRef{ token: .eq }, [term, right], attrs)
 			}
 			'in' {
-				in_tok := c.current_token
+				in_tok := TokenRef{
+					...c.current_token
+				}
 				c.next_token()
 				right := c.parse_expr()!
 				return Tuple3.new(in_tok, [term, right])
@@ -87,13 +97,6 @@ fn (mut c Compiler) parse_expr() !Node0 {
 				return error('To do something with this operator `${c.current_token.bin}`')
 			}
 		}
-	} else if is_should_match {
-		attrs := NodeAttributes{
-			is_should_match: is_should_match
-			type_id:         type_id
-			type_match:      type_match
-		}
-		return Tuple3.new_attrs(TokenRef{ token: .match }, [term], attrs)
 	}
 	return term
 }
@@ -104,7 +107,9 @@ fn (mut c Compiler) parse_term() !Node0 {
 			return c.current_token
 		}
 		.not {
-			not_token := c.current_token
+			not_token := TokenRef{
+				...c.current_token
+			}
 			c.next_token()
 			return Tuple3.new(not_token, c.parse_expr()!)
 		}
@@ -197,7 +202,9 @@ fn (mut c Compiler) parse_term() !Node0 {
 		}
 		.atom_key {
 			mut keyword_list := []Node0{}
-			atom := c.current_token
+			atom := TokenRef{
+				...c.current_token
+			}
 			for {
 				c.next_token()
 				value := c.parse_expr()!
@@ -224,17 +231,23 @@ fn (mut c Compiler) parse_term() !Node0 {
 			return c.parse_term()!
 		}
 		.float {
-			mut ident := c.current_token
+			mut ident := TokenRef{
+				...c.current_token
+			}
 			ident.type_id = c.types.index('float')
 			return ident
 		}
 		.integer {
-			mut ident := c.current_token
+			mut ident := TokenRef{
+				...c.current_token
+			}
 			ident.type_id = c.types.index('integer')
 			return ident
 		}
 		.string {
-			mut ident := c.current_token
+			mut ident := TokenRef{
+				...c.current_token
+			}
 			ident.type_id = c.types.index('string')
 			return ident
 		}

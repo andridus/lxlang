@@ -26,25 +26,79 @@ mut:
 	key     string
 	value   []IdentMatch
 	literal string
+	bind    string
+}
+
+fn (im IdentMatch) str() string {
+	has_key := im.key.len > 0
+	has_literal := im.literal.len > 0
+	has_value := im.value.len > 0
+	mut strings := ''
+
+	if has_literal && !has_key && !has_value {
+		return '${im.literal}'
+	}
+	if has_key {
+		strings += '${im.key}=>'
+	}
+	if has_literal {
+		strings += '${im.literal}'
+	}
+	if im.value.len == 1 {
+		strings += '${im.value[0].str()}'
+		return strings
+	} else if has_value {
+		strings += '%{${im.value.map(|v| v.str()).join(',')}}'
+	}
+	return '{' + strings + '}'
 }
 
 fn (im IdentMatch) hash() string {
-	if im.literal.len > 0 && im.value.len > 0 {
-		key := im.literal
-		values := im.value.map(|v| v.hash()).join(',')
-		return '${key}={${values}}'
-	} else if im.literal.len > 0 && im.key.len > 0 {
-		return '${im.key}=${im.literal}'
-	} else if im.literal.len > 0 {
-		return im.literal
+	has_key := im.key.len > 0
+	has_literal := im.literal.len > 0
+	has_bind := im.bind.len > 0
+	has_value := im.value.len > 0
+	mut strings := ''
+	if has_literal && !has_bind && !has_key && !has_value {
+		return '${im.literal}'
+	} else if has_bind && !has_literal && !has_key && !has_value {
+		return '$'
 	}
-	return ''
+	if (has_literal || has_bind) && has_value {
+		mut strings0 := ''
+		if has_bind {
+			strings0 += '$='
+		}
+		if has_literal {
+			strings0 += '${im.literal}='
+		}
+		strings0 += '%{${im.value[0].hash()}}'
+		return strings0
+	}
+	if has_bind {
+		strings += '${im.bind}='
+	}
+	if has_key {
+		strings += '${im.key}=>'
+	}
+	if has_literal && im.literal.starts_with('.') {
+		strings += '$'
+	} else {
+		strings += '${im.literal}'
+	}
+	if im.value.len == 1 {
+		strings += '${im.value[0].hash()}'
+		return strings
+	} else if has_value {
+		strings += '%{${im.value.map(|v| v.hash()).join(',')}}'
+	}
+	return '%{' + strings + '}'
 }
 
 fn (im IdentMatch) get_vars() []string {
 	mut literals := []string{}
-	if im.literal.starts_with('.') {
-		literals << im.literal.replace('.', '')
+	if im.bind.len > 0 {
+		literals << im.bind.replace('.', '')
 	}
 	if im.value.len > 0 {
 		for value in im.value {
@@ -60,6 +114,8 @@ fn (c Compiler) extract_idents_from_match_expr(expr Node0) !IdentMatch {
 	for idnt in idnts {
 		if idnt.key == '' && idnt.literal.len > 0 {
 			ident_match.literal = idnt.literal
+		} else if idnt.key == '' && idnt.bind.len > 0 {
+			ident_match.bind = idnt.bind
 		} else {
 			ident_match.value << idnt
 		}
@@ -75,67 +131,48 @@ fn (c Compiler) do_extract_idents_from_match_exp(expr Node0) ![]IdentMatch {
 				idents << c.do_extract_idents_from_match_exp(node)!
 			}
 		}
-		// Tuple3 {
-		// 	for node in expr.as_list() {
-		// 		idents << c.do_extract_idents_from_match_exp(node)!
-		// 	}
-		// }
 		Tuple3, Tuple2 {
-			mut key := ''
 			mut nodes := []Node0{}
 			node_left := expr.left()
 			if node_left is TokenRef {
-				if node_left.token == .percent {
-					nodes << expr.right().as_list()
-				} else {
-					nodes << expr.left().as_list()
-					nodes << expr.right().as_list()
+				match node_left.token {
+					.match {
+						nodes_right := expr.right().as_list()
+
+						for node_right in nodes_right {
+							if key0 := c.extract_value_str_from_node_el(node_right.left()) {
+								value := c.do_extract_idents_from_match_exp(node_right.right())!
+								idents << IdentMatch{
+									key:   key0
+									value: value
+								}
+							}
+						}
+					}
+					.percent {
+						return c.do_extract_idents_from_match_exp(expr.right())!
+					}
+					else {}
 				}
 			} else {
 				nodes << expr.as_list()
 			}
-			for node in nodes {
-				if key0 := c.extract_value_str_from_node_el(node.left()) {
-					key = key0
-				}
-				values := c.do_extract_idents_from_match_exp(node.right())!
-				if values.len == 1 && values[0].literal.len > 0 {
+		}
+		TokenRef {
+			if value := c.extract_value_str_from_node_el(expr) {
+				if value.starts_with('.') {
 					idents << IdentMatch{
-						key:     key
-						literal: values[0].literal
+						bind: value
 					}
 				} else {
 					idents << IdentMatch{
-						key:   key
-						value: values
+						literal: value
 					}
 				}
-			}
-		}
-		TokenRef {
-			match expr.token {
-				.ident {
-					if value := c.get_ident_value(expr) {
-						idents << IdentMatch{
-							key:     ''
-							literal: '.${value}'
-						}
-					}
-				}
-				.string {
-					if value := c.get_string_value(expr) {
-						idents << IdentMatch{
-							key:     ''
-							literal: '"${value}"'
-						}
-					}
-				}
-				else {}
 			}
 		}
 		else {}
 	}
-	// idents.sort()
 	return idents
 }
 
@@ -147,9 +184,14 @@ fn (c Compiler) extract_value_str_from_node_el(expr Node0) ?string {
 					return "\"${v}\""
 				}
 			}
-			if expr.token == .ident {
+			if expr.token == .atom_key {
 				if v := c.get_ident_value(expr) {
 					return ':${v}'
+				}
+			}
+			if expr.token == .ident {
+				if v := c.get_ident_value(expr) {
+					return '.${v}'
 				}
 			}
 		}
@@ -195,16 +237,14 @@ fn (c Compiler) make_args_match_hash(args []Arg, guard Node0) string {
 	mut args_str := []string{}
 	for a in args {
 		if ident_match := a.idents_from_match {
-			args_hashed := ident_match.hash()
-			str := match true {
-				args_hashed.starts_with('[') {
-					'map{${args_hashed}}'
-				}
-				else {
-					args_hashed
-				}
+			args_str << ident_match.hash()
+		} else if a.ident != token_nil {
+			v := c.get_ident_value(a.ident) or { 'nil' }
+			if v == 'nil' {
+				args_str << 'nil'
+			} else {
+				args_str << '$'
 			}
-			args_str << str
 		} else if a.type_match.len > 0 {
 			args_str << a.type_match
 		} else if type_ := c.types[a.type] {
@@ -215,11 +255,22 @@ fn (c Compiler) make_args_match_hash(args []Arg, guard Node0) string {
 	if guard_hash.len == 0 {
 		return '${hashed}'
 	}
-	return '${hashed}\$(${guard_hash})'
+	return '${hashed}WHEN(${guard_hash})'
 }
 
 fn (c Compiler) mount_match(tk Node0) ?NodeAttributes {
 	if attrs := tk.get_attributes() {
+		left := tk.left()
+		if left is TokenRef {
+			if left.token == .percent {
+				return NodeAttributes{
+					...attrs
+					type_match:      '_'
+					is_should_match: true
+					type_id:         attrs.type_id
+				}
+			}
+		}
 		if value := c.to_value_str(tk) {
 			return NodeAttributes{
 				...attrs

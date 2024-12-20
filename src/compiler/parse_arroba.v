@@ -5,7 +5,9 @@ fn (mut c Compiler) parse_arroba() !Node0 {
 	if attribute := c.get_ident_value(c.current_token) {
 		match attribute {
 			'moduledoc' {
-				token := c.current_token
+				token := TokenRef{
+					...c.current_token
+				}
 				c.match_next(.string)!
 				if moduledoc := c.get_string_value(c.current_token) {
 					c.moduledoc = moduledoc
@@ -35,7 +37,8 @@ fn (mut c Compiler) parse_arroba() !Node0 {
 									c.function_doc[function.name] = docstr
 									return node0
 								} else {
-									return error('not found function')
+									return c.parse_error('not found function ${n_right0_left}',
+										c.current_token)
 								}
 							}
 						}
@@ -65,12 +68,16 @@ fn (mut c Compiler) parse_arroba() !Node0 {
 						}
 					}
 				}
-				token := c.current_token
+				token := TokenRef{
+					...c.current_token
+				}
 				return Node0(token)
 			}
 			else {
 				// ident := c.parse_expr()!
-				token := c.current_token
+				token := TokenRef{
+					...c.current_token
+				}
 				c.next_token()
 				value := c.parse_expr()!
 				c.constants << Const{

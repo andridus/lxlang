@@ -1,13 +1,17 @@
 module compiler
 
 fn (mut c Compiler) parse_ident() !Node0 {
-	mut ident := c.current_token
+	mut ident := TokenRef{
+		...c.current_token
+	}
 	mut type_id := 0
 
 	if c.peak_token.token == .typespec {
 		c.next_token()
 		c.match_next(.ident)!
-		ident_type0 := c.current_token
+		ident_type0 := TokenRef{
+			...c.current_token
+		}
 		if ident_type := c.get_ident_value(ident_type0) {
 			type_id = c.types.len
 			type_idx0 := c.types.index(ident_type)

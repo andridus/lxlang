@@ -9,6 +9,26 @@ interface Node0 {
 	is_literal() bool
 }
 
+fn (n Node0) str() string {
+	match n {
+		TokenRef {
+			return n.str()
+		}
+		Tuple2 {
+			return n.str()
+		}
+		Tuple3 {
+			return n.str()
+		}
+		[]Node0 {
+			return '[${n.map(|v| v.str()).join(',')}]'
+		}
+		else {
+			return '-'
+		}
+	}
+}
+
 struct NodeAttributes {
 	pos_line        int
 	pos_char        int
@@ -16,6 +36,10 @@ struct NodeAttributes {
 	is_should_match bool
 	type_id         int
 	type_match      string
+}
+
+fn (a NodeAttributes) str() string {
+	return '[]'
 }
 
 fn (n0 []Node0) to_str() string {
@@ -46,7 +70,6 @@ fn (n0 []Node0) is_literal() bool {
 	return false
 }
 
-@[heap]
 struct Nil {}
 
 fn (n Nil) to_str() string {
@@ -73,11 +96,14 @@ fn (n Nil) is_literal() bool {
 	return true
 }
 
-@[heap]
 struct Tuple3 {
 	left  Node0
 	right Node0
 	attrs NodeAttributes
+}
+
+fn (t Tuple3) str() string {
+	return '{${t.left()}, ${t.attrs}, ${t.right()}}'
 }
 
 fn Tuple3.new_attrs(left Node0, right Node0, attrs1 NodeAttributes) Node0 {
@@ -139,10 +165,13 @@ fn (t Tuple3) is_literal() bool {
 	return false
 }
 
-@[heap]
 struct Tuple2 {
 	left  Node0
 	right Node0
+}
+
+fn (t Tuple2) str() string {
+	return '{${t.left()}, ${t.right()}}'
 }
 
 fn Tuple2.new(left Node0, right Node0) Node0 {
@@ -176,7 +205,6 @@ fn (t Tuple2) is_literal() bool {
 	return false
 }
 
-@[heap]
 pub struct TokenRef {
 pub:
 	token    Token

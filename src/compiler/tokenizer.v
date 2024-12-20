@@ -190,7 +190,7 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 						c.idents << ident
 					}
 				}
-				.ident {
+				.ident, .atom_key {
 					table = .idents
 					idx0 := c.idents.index(ident)
 					if idx0 != -1 {

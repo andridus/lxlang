@@ -3,11 +3,15 @@ module compiler
 const token_nil = &TokenRef{}
 
 fn (mut c Compiler) parse_function() !Node0 {
-	left := c.current_token
+	left := TokenRef{
+		...c.current_token
+	}
 	pos_line := c.current_token.pos_line
 	pos_char := c.current_token.pos_char
 	c.match_next(.function_name)!
-	function_name := c.current_token
+	function_name := TokenRef{
+		...c.current_token
+	}
 	fun := c.get_function_value(function_name) or {
 		return c.parse_error('not found function', c.current_token)
 	}
@@ -15,7 +19,9 @@ fn (mut c Compiler) parse_function() !Node0 {
 	idx_function := fun.idx
 
 	mut right := []Node0{}
-	right << c.current_token
+	right << TokenRef{
+		...c.current_token
+	}
 	args := c.maybe_parse_args() or { []Arg{} }
 	type_idx := c.parse_typespec() or { 0 }
 
@@ -31,13 +37,13 @@ fn (mut c Compiler) parse_function() !Node0 {
 			}
 		}
 	}
-	hashed := c.make_args_match_hash(args, Node0(Nil{}))
 	c.functions[idx_function].scoped_vars = vars
 	defer {
 		c.functions[idx_function].scoped_vars.clear()
 	}
 	c.current_function_idx = fun.idx
 	guard := c.parse_guard() or { Node0(Nil{}) }
+	hashed := c.make_args_match_hash(args, guard)
 	c.current_function_idx = -1
 
 	// Define functions arity (function matches)
@@ -56,6 +62,7 @@ fn (mut c Compiler) parse_function() !Node0 {
 	}
 	mut right0 := []Node0{}
 	mut function_has_end_token := true
+
 	match true {
 		c.peak_token.token == .comma {
 			c.next_token()
@@ -84,16 +91,15 @@ fn (mut c Compiler) parse_function() !Node0 {
 
 	if c.current_token.token != .end {
 		c.current_function_idx = fun.idx
-		c.current_function_hashed = hashed
 		parsed := c.parse_expr()!
 		c.current_function_idx = -1
-		c.current_function_hashed = ''
 		right0 << parsed
 		right << Tuple2.new(TokenRef{ token: .do }, parsed)
 	}
 	if function_has_end_token {
 		c.match_next(.end)!
 	}
+
 	c.functions_body[function_name.idx] = right0
 	return Tuple3.new(left, right)
 }
@@ -118,36 +124,38 @@ fn (mut c Compiler) maybe_parse_args() ?[]Arg {
 				eprintln("can't parse args")
 				exit(1)
 			}
-			if ident := c.get_left_ident(arg.left()) {
-				attrs := arg.get_attributes() or { NodeAttributes{} }
-
-				match ident.token {
-					.match {
-						// when is struct or map
-						arg_right := arg.right()
-						ident_from_match := c.extract_idents_from_match_expr(arg_right) or {
-							return none
-						}
-						args << Arg{
-							ident:             token_nil
-							idents_from_match: ident_from_match
-							type:              attrs.type_id
-							type_match:        ident_from_match.hash()
-							is_should_match:   true
-							match_expr:        arg_right
-						}
+			arg_right := arg.right()
+			arg_right_left := arg.right().left()
+			mut ident := token_nil
+			ident = c.get_left_ident(arg_right_left) or { ident }
+			if ident.token != .match {
+				ident = c.get_left_ident(arg.left()) or { ident }
+			}
+			attrs := arg.get_attributes() or { NodeAttributes{} }
+			match ident.token {
+				.match {
+					// when is struct or map
+					ident_from_match := c.extract_idents_from_match_expr(arg_right) or {
+						return none
 					}
-					else {
-						args << Arg{
-							ident:           ident
-							type:            attrs.type_id
-							type_match:      attrs.type_match
-							is_should_match: attrs.is_should_match
-						}
+					args << Arg{
+						ident:             token_nil
+						idents_from_match: ident_from_match
+						type:              attrs.type_id
+						type_match:        ident_from_match.hash()
+						is_should_match:   true
+						match_expr:        arg
+					}
+				}
+				else {
+					args << Arg{
+						ident:           ident
+						type:            attrs.type_id
+						type_match:      attrs.type_match
+						is_should_match: attrs.is_should_match
 					}
 				}
 			}
-
 			if c.peak_token.token == .comma {
 				c.next_token()
 			}
@@ -166,7 +174,9 @@ fn (mut c Compiler) parse_typespec() ?int {
 	if c.peak_token.token == .typespec {
 		c.next_token()
 		c.match_next(.ident) or { return none }
-		token := c.current_token
+		token := TokenRef{
+			...c.current_token
+		}
 		if ident := c.idents[token.idx] {
 			mut type_idx := c.types.len
 			type_idx0 := c.types.index(ident)

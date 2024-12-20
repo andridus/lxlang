@@ -2,7 +2,9 @@ module compiler
 
 fn (mut c Compiler) parse_import() !Node0 {
 	c.match_next(.module_name)!
-	token := c.current_token
+	token := TokenRef{
+		...c.current_token
+	}
 	mut args := []Node0{}
 	for c.peak_token.token == .comma {
 		c.next_token()

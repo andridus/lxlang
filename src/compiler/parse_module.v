@@ -1,7 +1,9 @@
 module compiler
 
 fn (mut c Compiler) parse_module() !Node0 {
-	left_node0 := c.current_token
+	left_node0 := TokenRef{
+		...c.current_token
+	}
 	c.match_next(.module_name)!
 	c.module_name = c.current_token
 	right0_node0 := Node0(c.current_token)
