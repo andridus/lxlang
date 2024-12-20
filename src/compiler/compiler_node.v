@@ -46,6 +46,7 @@ fn (n0 []Node0) is_literal() bool {
 	return false
 }
 
+@[heap]
 struct Nil {}
 
 fn (n Nil) to_str() string {
@@ -72,6 +73,7 @@ fn (n Nil) is_literal() bool {
 	return true
 }
 
+@[heap]
 struct Tuple3 {
 	left  Node0
 	right Node0
@@ -137,6 +139,7 @@ fn (t Tuple3) is_literal() bool {
 	return false
 }
 
+@[heap]
 struct Tuple2 {
 	left  Node0
 	right Node0
@@ -173,6 +176,7 @@ fn (t Tuple2) is_literal() bool {
 	return false
 }
 
+@[heap]
 pub struct TokenRef {
 pub:
 	token    Token

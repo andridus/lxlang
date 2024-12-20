@@ -58,7 +58,7 @@ mut:
 struct Function {
 	name string
 mut:
-	scoped_vars []TokenRef
+	scoped_vars []string
 	matches     map[string]FunctionMatch
 	starts      int
 	pos_line    int
@@ -120,7 +120,7 @@ struct Arg {
 mut:
 	type              int
 	type_match        string
-	idents_from_match []string
+	idents_from_match ?IdentMatch
 	is_should_match   bool
 	match_expr        Node0 = Nil{} // pointer to match exprs
 }

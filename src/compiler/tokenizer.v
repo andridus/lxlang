@@ -170,7 +170,13 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 				ident in keywords {
 					token = Token.from(ident)!
 				}
-				else {}
+				else {
+					if c.source.match_peak_at_more(1, `:`) && c.source.match_peak_at_more(2, ` `) {
+						c.source.next()
+						c.source.next()
+						token = Token.atom_key
+					}
+				}
 			}
 
 			match token {

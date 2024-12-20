@@ -1,12 +1,12 @@
 module compiler
 
-// fn (t TokenRef) str() string {
-// 	if t.table != .none {
-// 		return '${t.token.str()}:${c(.white, .default, t.idx.str())}'
-// 	} else {
-// 		return '${t.token.str()}'
-// 	}
-// }
+fn (t TokenRef) str() string {
+	if t.table != .none {
+		return '${t.token.str()}:${c(.white, .default, t.idx.str())}'
+	} else {
+		return '${t.token.str()}'
+	}
+}
 
 // fn (t Token) to_str() string {
 // 	return match t {

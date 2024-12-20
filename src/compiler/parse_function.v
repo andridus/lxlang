@@ -18,12 +18,12 @@ fn (mut c Compiler) parse_function() !Node0 {
 	right << c.current_token
 	args := c.maybe_parse_args() or { []Arg{} }
 	type_idx := c.parse_typespec() or { 0 }
-	guard := c.parse_guard() or { Node0(Nil{}) }
+
 	mut vars := []string{}
 	for arg in args {
 		if arg.is_should_match {
-			for v in arg.idents_from_match {
-				vars << v.replace('=', '')
+			if ident_match := arg.idents_from_match {
+				vars << ident_match.get_vars()
 			}
 		} else {
 			if v := c.get_ident_value(arg.ident) {
@@ -31,7 +31,15 @@ fn (mut c Compiler) parse_function() !Node0 {
 			}
 		}
 	}
-	hashed := c.make_args_match_hash(args, guard)
+	hashed := c.make_args_match_hash(args, Node0(Nil{}))
+	c.functions[idx_function].scoped_vars = vars
+	defer {
+		c.functions[idx_function].scoped_vars.clear()
+	}
+	c.current_function_idx = fun.idx
+	guard := c.parse_guard() or { Node0(Nil{}) }
+	c.current_function_idx = -1
+
 	// Define functions arity (function matches)
 	if _ := fun.matches[hashed] {
 		return c.parse_error_custom('Function ${fun.name} ${hashed} already defined',
@@ -107,7 +115,7 @@ fn (mut c Compiler) maybe_parse_args() ?[]Arg {
 			}
 			c.next_token()
 			arg := c.parse_expr() or {
-				println('err: ${err.msg()}')
+				eprintln("can't parse args")
 				exit(1)
 			}
 			if ident := c.get_left_ident(arg.left()) {
@@ -117,14 +125,15 @@ fn (mut c Compiler) maybe_parse_args() ?[]Arg {
 					.match {
 						// when is struct or map
 						arg_right := arg.right()
+						ident_from_match := c.extract_idents_from_match_expr(arg_right) or {
+							return none
+						}
 						args << Arg{
 							ident:             token_nil
-							idents_from_match: c.extract_idents_from_match_expr(arg_right) or {
-								return none
-							}
+							idents_from_match: ident_from_match
 							type:              attrs.type_id
-							type_match:        attrs.type_match
-							is_should_match:   attrs.is_should_match
+							type_match:        ident_from_match.hash()
+							is_should_match:   true
 							match_expr:        arg_right
 						}
 					}

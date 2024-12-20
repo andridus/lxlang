@@ -48,6 +48,13 @@ fn (s Source) peak_eof() bool {
 	return s.i + 1 >= s.total - 1
 }
 
+fn (s Source) match_peak_at_more(pos int, m u8) bool {
+	if s.i + pos < s.total {
+		return s.src[s.i + pos] == m
+	}
+	return false
+}
+
 fn (mut s Source) advance_multi() bool {
 	len1 := s.total - s.i
 	if len1 > 3 && s.src[s.i..(s.i + 3)] == [u8(34), 34, 34] {

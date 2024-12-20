@@ -21,38 +21,113 @@ fn (c Compiler) get_left_ident(n Node0) ?&TokenRef {
 	}
 }
 
-fn (c Compiler) extract_idents_from_match_expr(expr Node0) ![]string {
-	mut idents := []string{}
+struct IdentMatch {
+mut:
+	key     string
+	value   []IdentMatch
+	literal string
+}
+
+fn (im IdentMatch) hash() string {
+	if im.literal.len > 0 && im.value.len > 0 {
+		key := im.literal
+		values := im.value.map(|v| v.hash()).join(',')
+		return '${key}={${values}}'
+	} else if im.literal.len > 0 && im.key.len > 0 {
+		return '${im.key}=${im.literal}'
+	} else if im.literal.len > 0 {
+		return im.literal
+	}
+	return ''
+}
+
+fn (im IdentMatch) get_vars() []string {
+	mut literals := []string{}
+	if im.literal.starts_with('.') {
+		literals << im.literal.replace('.', '')
+	}
+	if im.value.len > 0 {
+		for value in im.value {
+			literals << value.get_vars()
+		}
+	}
+	return literals
+}
+
+fn (c Compiler) extract_idents_from_match_expr(expr Node0) !IdentMatch {
+	idnts := c.do_extract_idents_from_match_exp(expr)!
+	mut ident_match := IdentMatch{}
+	for idnt in idnts {
+		if idnt.key == '' && idnt.literal.len > 0 {
+			ident_match.literal = idnt.literal
+		} else {
+			ident_match.value << idnt
+		}
+	}
+	return ident_match
+}
+
+fn (c Compiler) do_extract_idents_from_match_exp(expr Node0) ![]IdentMatch {
+	mut idents := []IdentMatch{}
 	match expr {
 		[]Node0 {
 			for node in expr {
-				idents << c.extract_idents_from_match_expr(node)!
+				idents << c.do_extract_idents_from_match_exp(node)!
 			}
 		}
-		Tuple3 {
-			for node in expr.as_list() {
-				idents << c.extract_idents_from_match_expr(node)!
-			}
-		}
-		Tuple2 {
+		// Tuple3 {
+		// 	for node in expr.as_list() {
+		// 		idents << c.do_extract_idents_from_match_exp(node)!
+		// 	}
+		// }
+		Tuple3, Tuple2 {
 			mut key := ''
-			if key0 := c.extract_value_str_from_node_el(expr.left()) {
-				key = '[${key0}]'
+			mut nodes := []Node0{}
+			node_left := expr.left()
+			if node_left is TokenRef {
+				if node_left.token == .percent {
+					nodes << expr.right().as_list()
+				} else {
+					nodes << expr.left().as_list()
+					nodes << expr.right().as_list()
+				}
+			} else {
+				nodes << expr.as_list()
 			}
-			for value in c.extract_idents_from_match_expr(expr.right())! {
-				idents << '${key}${value}'
+			for node in nodes {
+				if key0 := c.extract_value_str_from_node_el(node.left()) {
+					key = key0
+				}
+				values := c.do_extract_idents_from_match_exp(node.right())!
+				if values.len == 1 && values[0].literal.len > 0 {
+					idents << IdentMatch{
+						key:     key
+						literal: values[0].literal
+					}
+				} else {
+					idents << IdentMatch{
+						key:   key
+						value: values
+					}
+				}
 			}
 		}
 		TokenRef {
 			match expr.token {
 				.ident {
 					if value := c.get_ident_value(expr) {
-						idents << '=${value}'
+						idents << IdentMatch{
+							key:     ''
+							literal: '.${value}'
+						}
 					}
 				}
 				.string {
 					if value := c.get_string_value(expr) {
-						idents << '="${value}"'
+						idents << IdentMatch{
+							key:     ''
+							literal: '"${value}"'
+						}
 					}
 				}
 				else {}
@@ -60,7 +135,7 @@ fn (c Compiler) extract_idents_from_match_expr(expr Node0) ![]string {
 		}
 		else {}
 	}
-	idents.sort()
+	// idents.sort()
 	return idents
 }
 
@@ -119,8 +194,8 @@ fn (c Compiler) make_args_match_hash(args []Arg, guard Node0) string {
 	guard_hash := c.make_hash_from_node_el(guard)
 	mut args_str := []string{}
 	for a in args {
-		if a.idents_from_match.len > 0 {
-			args_hashed := a.idents_from_match.join(',')
+		if ident_match := a.idents_from_match {
+			args_hashed := ident_match.hash()
 			str := match true {
 				args_hashed.starts_with('[') {
 					'map{${args_hashed}}'
@@ -249,4 +324,52 @@ fn (c Compiler) get_integer_value(t TokenRef) ?int {
 		}
 	}
 	return none
+}
+
+fn (c Compiler) eof() bool {
+	return c.current_position >= c.tokens.len
+}
+
+fn (c Compiler) eof_next() bool {
+	return (c.current_position + 1) >= c.tokens.len
+}
+
+fn (mut c Compiler) next_token() {
+	c.current_position++
+	if !c.eof() {
+		c.current_token = c.tokens[c.current_position]
+		if !c.eof_next() {
+			c.peak_token = c.tokens[c.current_position + 1]
+		} else {
+			c.peak_token = TokenRef{
+				token: .eof
+			}
+		}
+	}
+}
+
+fn (mut c Compiler) match_next(token Token) ! {
+	c.next_token()
+	if c.current_token.token != token {
+		return c.parse_error_custom('unexpected term ${c.current_token.token}, should be ${token}',
+			c.current_token)
+	}
+}
+
+fn (mut c Compiler) opt_match_next(token Token) bool {
+	if c.peak_token.token == token {
+		c.next_token()
+		return true
+	}
+	return false
+}
+
+fn (mut c Compiler) maybe_match_next(tokens []Token) !Token {
+	c.next_token()
+	if c.current_token.token in tokens {
+		return c.current_token.token
+	} else {
+		return c.parse_error_custom('unexpected term ${c.current_token.token}, should be in ${tokens}',
+			c.current_token)
+	}
 }
