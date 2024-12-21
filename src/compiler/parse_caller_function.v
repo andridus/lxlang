@@ -4,6 +4,14 @@ fn (mut c Compiler) parse_caller_function() !Node0 {
 	mut caller := TokenRef{
 		...c.current_token
 	}
+	if v := c.get_ident_value(caller) {
+		if v == 'from' {
+			c.in_macro = true
+			defer {
+				c.in_macro = false
+			}
+		}
+	}
 	args := c.parse_function_caller_args()!
 	c.update_caller_function(mut caller, args)!
 
@@ -13,6 +21,9 @@ fn (mut c Compiler) parse_caller_function() !Node0 {
 fn (mut c Compiler) parse_function_caller_args() ![]Arg {
 	mut inside_parens := 0
 	mut args := []Arg{}
+	if c.peak_token.token != .lpar {
+		c.next_token()
+	}
 	for {
 		if c.peak_token.token == .lpar {
 			inside_parens++
@@ -48,16 +59,20 @@ fn (mut c Compiler) parse_function_caller_args() ![]Arg {
 				}
 			}
 		}
-		if c.peak_token.token == .comma {
-			c.next_token()
-			c.next_token()
-		} else if c.peak_token.token == .rpar && inside_parens == 1 {
+		if c.peak_token.token == .rpar && inside_parens == 1 {
 			c.next_token()
 			break
 		} else if c.peak_token.token == .rpar {
 			inside_parens--
 			c.next_token()
-			// c.next_token()
+		}
+		if c.peak_token.token == .comma {
+			c.next_token()
+			c.next_token()
+		} else if inside_parens == 0 {
+			// NOTE1
+			c.next_token()
+			break
 		}
 	}
 

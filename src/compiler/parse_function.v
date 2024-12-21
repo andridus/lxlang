@@ -89,13 +89,19 @@ fn (mut c Compiler) parse_function() !Node0 {
 		}
 	}
 
-	if c.current_token.token != .end {
+	for c.peak_token.token != .end {
 		c.current_function_idx = fun.idx
 		parsed := c.parse_expr()!
 		c.current_function_idx = -1
 		right0 << parsed
-		right << Tuple2.new(TokenRef{ token: .do }, parsed)
+		if !function_has_end_token {
+			break
+		}
+		if c.peak_token.token != .end {
+			c.next_token()
+		}
 	}
+	right << Tuple2.new(TokenRef{ token: .do }, right0)
 	if function_has_end_token {
 		c.match_next(.end)!
 	}

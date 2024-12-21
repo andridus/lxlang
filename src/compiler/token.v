@@ -36,6 +36,7 @@ pub enum Token {
 	colon
 	module_name
 	atom_key
+	struct
 	percent
 	moduledoc
 	integer

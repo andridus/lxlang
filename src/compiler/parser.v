@@ -139,12 +139,16 @@ fn (mut c Compiler) parse_term() !Node0 {
 		.percent {
 			// only for maps
 			// c.next_token()
+
 			mut has_struct := false
 			mut struct_name := TokenRef{}
 			if c.opt_match_next(.module_name) {
 				has_struct = true
-				struct_name = c.current_token
+				struct_name = TokenRef{
+					...c.current_token
+				}
 			}
+
 			c.match_next(.lcbr)!
 			mut keyword_list := []Node0{}
 			// c.next_token()
@@ -156,9 +160,14 @@ fn (mut c Compiler) parse_term() !Node0 {
 					c.next_token()
 				}
 			}
+
 			c.match_next(.rcbr)!
-			right := if has_struct { [Node0(struct_name), keyword_list] } else { keyword_list }
-			return Tuple3.new(TokenRef{ token: .percent }, right)
+			if has_struct {
+				// SAVE struct
+				return Tuple3.new(TokenRef{ token: .percent, idx: struct_name.idx }, keyword_list)
+			} else {
+				return Tuple3.new(TokenRef{ token: .percent }, keyword_list)
+			}
 		}
 		.lsbr {
 			// lists

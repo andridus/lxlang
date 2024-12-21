@@ -52,6 +52,7 @@ mut:
 	in_caller_function             bool
 	peak_token                     TokenRef
 	nodes                          Node0 = c_nil
+	in_macro                       bool
 	times                          map[string]time.Duration
 }
 

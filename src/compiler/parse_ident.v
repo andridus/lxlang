@@ -41,7 +41,7 @@ fn (mut c Compiler) parse_ident() !Node0 {
 		}
 	}
 	if type_id != c.types.index('nil') && c.current_function_idx >= 0 && c.peak_token.bin != '='
-		&& !c.in_caller_function {
+		&& !c.in_caller_function && !c.in_macro {
 		if fun := c.functions[c.current_function_idx] {
 			if idvalue !in fun.scoped_vars {
 				c.in_caller_function = true
