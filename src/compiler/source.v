@@ -28,7 +28,7 @@ fn (mut s Source) next() {
 		s.current = s.src[s.i]
 		if s.current == `\n` {
 			s.line++
-			s.char = 0
+			s.char = -1
 		} else {
 			s.char++
 		}

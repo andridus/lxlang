@@ -20,8 +20,8 @@ fn (n Node0) str() string {
 		Tuple3 {
 			return n.str()
 		}
-		[]Node0 {
-			return '[${n.map(|v| v.str()).join(',')}]'
+		List {
+			return '[${n.items.map(|v| v.str()).join(',')}]'
 		}
 		else {
 			return '-'
@@ -42,31 +42,37 @@ fn (a NodeAttributes) str() string {
 	return '[]'
 }
 
-fn (n0 []Node0) to_str() string {
+struct List {
+	items []Node0
+}
+fn List.new(nodes []Node0) Node0 {
+	return List{items: nodes}
+}
+fn (n0 List) to_str() string {
 	return 'LIST Node0'
 }
 
-fn (n0 []Node0) get_attributes() ?NodeAttributes {
+fn (n0 List) get_attributes() ?NodeAttributes {
 	return NodeAttributes{}
 }
 
-fn (n0 []Node0) left() Node0 {
-	if n0.len > 0 {
-		return n0[0]
+fn (n0 List) left() Node0 {
+	if n0.items.len > 0 {
+		return n0.items[0]
 	} else {
 		return Nil{}
 	}
 }
 
-fn (n0 []Node0) right() Node0 {
-	return if n0.len > 0 { n0[1..] } else { []Node0{} }
+fn (n0 List) right() Node0 {
+	return if n0.items.len > 0 { List{items: n0.items[1..]} } else { List{} }
 }
 
-fn (n0 []Node0) as_list() []Node0 {
-	return n0
+fn (n0 List) as_list() []Node0 {
+	return n0.items
 }
 
-fn (n0 []Node0) is_literal() bool {
+fn (n0 List) is_literal() bool {
 	return false
 }
 
@@ -210,7 +216,10 @@ pub:
 	token    Token
 	pos_line int
 	pos_char int
+	start_pos int
+	end_pos int
 	bin      string
+	is_endline bool
 pub mut:
 	idx     int
 	table   TableEnum
@@ -247,6 +256,9 @@ fn (tk TokenRef) is_literal() bool {
 
 pub fn (t TokenRef) positions() (int, int) {
 	return t.pos_line, t.pos_char
+}
+pub fn (t TokenRef) positions1() (int, int, int) {
+	return t.pos_line, t.start_pos, t.end_pos
 }
 
 // fn (t TokenRef) to_node() Node0 {

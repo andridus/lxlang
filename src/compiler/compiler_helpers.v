@@ -9,7 +9,7 @@ fn (c Compiler) get_module_name() !string {
 
 fn (c Compiler) get_left_ident(n Node0) ?&TokenRef {
 	match n {
-		[]Node0 {
+		List {
 			return c.get_left_ident(n.left())
 		}
 		TokenRef {
@@ -126,8 +126,8 @@ fn (c Compiler) extract_idents_from_match_expr(expr Node0) !IdentMatch {
 fn (c Compiler) do_extract_idents_from_match_exp(expr Node0) ![]IdentMatch {
 	mut idents := []IdentMatch{}
 	match expr {
-		[]Node0 {
-			for node in expr {
+		List {
+			for node in expr.items {
 				idents << c.do_extract_idents_from_match_exp(node)!
 			}
 		}

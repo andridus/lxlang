@@ -34,26 +34,31 @@ fn (mut s State) update_document(document string, text string) {
 fn (mut s State) hover(hover_params HoverParams) string {
 	uri := hover_params.text_document.uri
 	if c := s.documents[uri] {
-		mut before_char_token := 0
+		hover_line := hover_params.position.line + 1
+		hover_pos := hover_params.position.character
 		for tk in c.get_tokens() {
-			line, character := tk.positions()
-			if line == hover_params.position.line {
-				if hover_params.position.character == character {
-					if tk.token == .function_name {
-						if doc := c.get_function_doc(tk) {
-							return new_hover_result(doc)
+			line, start_pos, end_pos := tk.positions1()
+			if line == hover_line {
+				if hover_pos >= start_pos && hover_pos <= end_pos {
+					match tk.token {
+						.function_name {
+							if doc := c.get_function_doc(tk) {
+								if doc.len != 0 {
+									return new_hover_result(doc)
+								}
+							}
 						}
-					}
-				} else if before_char_token != 0
-					&& hover_params.position.character > before_char_token
-					&& hover_params.position.character < character {
-					if tk.token == .function_name {
-						if doc := c.get_function_doc(tk) {
-							return new_hover_result(doc)
+						.caller_function {
+							if doc := c.get_function_doc(tk) {
+								if doc.len != 0 {
+									return new_hover_result(doc)
+								}
+							}
 						}
+						else {}
 					}
-				} else {
-					before_char_token = character
+
+					return new_hover_result(tk.token.str())
 				}
 			}
 		}

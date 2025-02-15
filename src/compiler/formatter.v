@@ -2,7 +2,7 @@ module compiler
 
 fn (t TokenRef) str() string {
 	if t.table != .none {
-		return '${t.token.str()}:${c(.white, .default, t.idx.str())}'
+		return '${t.token.str()}:${c(.white, .default, t.idx.str())}[${t.is_endline}]'
 	} else {
 		return '${t.token.str()}'
 	}

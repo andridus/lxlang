@@ -368,8 +368,8 @@ fn (mut c Compiler) function_info(b &Beam, func Function) []BeamInstruction {
 fn (mut c Compiler) function_body(func_node Node0) []BeamInstruction {
 	mut instructions := []BeamInstruction{}
 	match func_node {
-		[]Node0 {
-			for node in func_node {
+		List {
+			for node in func_node.items {
 				instructions << c.function_body(node)
 			}
 		}

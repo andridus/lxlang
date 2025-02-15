@@ -101,13 +101,13 @@ fn (mut c Compiler) parse_function() !Node0 {
 			c.next_token()
 		}
 	}
-	right << Tuple2.new(TokenRef{ token: .do }, right0)
+	right << Tuple2.new(TokenRef{ token: .do }, List.new(right0))
 	if function_has_end_token {
 		c.match_next(.end)!
 	}
 
 	c.functions_body[function_name.idx] = right0
-	return Tuple3.new(left, right)
+	return Tuple3.new(left, List.new(right))
 }
 
 fn (mut c Compiler) maybe_parse_args() ?[]Arg {

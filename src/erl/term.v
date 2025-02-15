@@ -3,7 +3,7 @@ module erl
 import math.big
 import bitfield
 
-type Term = bool
+pub type Term = bool
 	| string
 	| i8
 	| int

@@ -47,7 +47,7 @@ fn (mut c Compiler) parse_expr() !Node0 {
 		match_term := Tuple2.new(TokenRef{ token: .match }, right_term)
 		term = Tuple3.new_attrs(left_term, match_term, attrs)
 	}
-	if c.peak_token.token == .operator {
+	if c.peak_token.token == .operator && c.peak_token.bin in ['=>', '=', '==', 'in', '|>']  {
 		c.next_token()
 		match c.current_token.bin {
 			'=>' {
@@ -63,7 +63,7 @@ fn (mut c Compiler) parse_expr() !Node0 {
 					type_id:         type_id
 					type_match:      type_match
 				}
-				return Tuple3.new_attrs(TokenRef{ token: .match }, [term, right], attrs)
+				return Tuple3.new_attrs(TokenRef{ token: .match }, List.new([term, right]), attrs)
 			}
 			'==' {
 				// need to be check if is a equals expressions
@@ -74,7 +74,7 @@ fn (mut c Compiler) parse_expr() !Node0 {
 					type_id:         type_id
 					type_match:      type_match
 				}
-				return Tuple3.new_attrs(TokenRef{ token: .eq }, [term, right], attrs)
+				return Tuple3.new_attrs(TokenRef{ token: .eq }, List.new([term, right]), attrs)
 			}
 			'in' {
 				in_tok := TokenRef{
@@ -82,17 +82,40 @@ fn (mut c Compiler) parse_expr() !Node0 {
 				}
 				c.next_token()
 				right := c.parse_expr()!
-				return Tuple3.new(in_tok, [term, right])
+				return Tuple3.new(in_tok, List.new([term, right]))
 			}
 			'|>' {
 				c.next_token()
 				right := c.parse_expr()!
-				return Tuple3.new(TokenRef{ token: .pipe }, [term, right])
+				return Tuple3.new(TokenRef{ token: .pipe }, List.new([term, right]))
 			}
-			'->' {
-				// bypass to handle inside defined functions
-				return term
-			}
+			// '->' {
+			// 	mut clauses := []Node0{}
+			// 	mut clauses_header := map[int]Node0{}
+			// 	clauses_header[0] = term
+
+			// 	mut clauses_body := map[int][]Node0{}
+			// 	mut i := 0
+			// 	for c.peak_token.token != .end {
+			// 		c.next_token()
+			// 		clause := c.parse_expr()!
+			// 		// c.next_token()
+			// 		println('c $clause')
+			// 		println(c.peak_token)
+			// 		if c.current_token.token == .operator && c.current_token.bin == '->' {
+			// 			i++
+			// 			clauses_header[i] = clause
+			// 		} else {
+			// 			clauses_body[i] << clause
+			// 		}
+			// 	}
+			// 	println('headers: ${clauses_header}')
+			// 	println('body: ${clauses_body}')
+			// 	for i0, clause in clauses_header {
+			// 		clauses << Tuple3.new(clause, List.new(clauses_body[i0]))
+			// 	}
+			// 	return List.new(clauses)
+			// }
 			else {
 				return error('To do something with this operator `${c.current_token.bin}`')
 			}
@@ -113,6 +136,33 @@ fn (mut c Compiler) parse_term() !Node0 {
 			c.next_token()
 			return Tuple3.new(not_token, c.parse_expr()!)
 		}
+		.case {
+			c.next_token()
+			expr := c.parse_expr()!
+			c.match_next(.do)!
+			mut clauses := []Node0{}
+			mut clauses_header := map[int]Node0{}
+			mut clauses_body := map[int][]Node0{}
+			mut i := 0
+			for c.peak_token.token != .end {
+				c.next_token()
+				clause := c.parse_expr()!
+				if c.peak_token.token == .operator && c.peak_token.bin == '->' {
+				c.next_token()
+					i++
+					clauses_header[i] = clause
+				} else {
+					clauses_body[i] << clause
+				}
+			}
+			c.match_next(.end)!
+			for i0, clause in clauses_header {
+				clauses << Tuple3.new(clause, List.new(clauses_body[i0]))
+			}
+			body := Tuple2.new(TokenRef{ token: .do }, List.new(clauses))
+			case := Tuple2.new(expr, body)
+			return Tuple3.new(TokenRef{ token: .case }, case)
+		}
 		.cond {
 			c.match_next(.do)!
 			mut clauses := []Node0{}
@@ -132,9 +182,9 @@ fn (mut c Compiler) parse_term() !Node0 {
 			}
 			c.match_next(.end)!
 			for i0, clause in clauses_header {
-				clauses << Tuple3.new(clause, clauses_body[i0])
+				clauses << Tuple3.new(clause, List.new(clauses_body[i0]))
 			}
-			return Tuple3.new(TokenRef{ token: .cond }, clauses)
+			return Tuple3.new(TokenRef{ token: .cond }, List.new(clauses))
 		}
 		.percent {
 			// only for maps
@@ -164,9 +214,9 @@ fn (mut c Compiler) parse_term() !Node0 {
 			c.match_next(.rcbr)!
 			if has_struct {
 				// SAVE struct
-				return Tuple3.new(TokenRef{ token: .percent, idx: struct_name.idx }, keyword_list)
+				return Tuple3.new(TokenRef{ token: .percent, idx: struct_name.idx }, List.new(keyword_list))
 			} else {
-				return Tuple3.new(TokenRef{ token: .percent }, keyword_list)
+				return Tuple3.new(TokenRef{ token: .percent }, List.new(keyword_list))
 			}
 		}
 		.lsbr {
@@ -181,7 +231,7 @@ fn (mut c Compiler) parse_term() !Node0 {
 				}
 			}
 			c.match_next(.rsbr)!
-			return items
+			return List.new(items)
 		}
 		.lcbr {
 			// tuples
@@ -195,7 +245,7 @@ fn (mut c Compiler) parse_term() !Node0 {
 				}
 			}
 			c.match_next(.rcbr)!
-			return items
+			return List.new(items)
 		}
 		.arroba {
 			return c.parse_arroba()!
@@ -225,7 +275,7 @@ fn (mut c Compiler) parse_term() !Node0 {
 					break
 				}
 			}
-			return Node0(keyword_list)
+			return List.new(keyword_list)
 		}
 		.operator {
 			match c.current_token.bin {
@@ -273,7 +323,7 @@ fn into_block(elems []Node0) Node0 {
 			left:  TokenRef{
 				token: .__block__
 			}
-			right: elems
+			right: List.new(elems)
 		}
 	}
 }

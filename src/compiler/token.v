@@ -19,6 +19,7 @@ enum TableEnum {
 pub enum Token {
 	nil
 	eof
+	linebreak
 	ident
 	import
 	alias
@@ -52,6 +53,7 @@ pub enum Token {
 	cond
 	not
 	when
+	case
 	default_arg
 	operator
 	function_name

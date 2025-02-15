@@ -11,10 +11,10 @@ fn (mut c Compiler) parse_arroba() !Node0 {
 				c.match_next(.string)!
 				if moduledoc := c.get_string_value(c.current_token) {
 					c.moduledoc = moduledoc
-					return Tuple3.new(TokenRef{ token: .moduledoc }, [
+					return Tuple3.new(TokenRef{ token: .moduledoc }, List.new([
 						Node0(token),
 						c.current_token,
-					])
+					]))
 				}
 			}
 			'doc' {

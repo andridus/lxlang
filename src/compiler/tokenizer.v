@@ -148,6 +148,7 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 		is_letter(c.source.current) {
 			mut idx := 0
 			curr := c.source.current
+			current_pos := c.source.char
 			mut table := TableEnum.none
 			ident := c.source.get_next_ident()!
 			mut token := Token.ident
@@ -265,13 +266,19 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 				}
 				else {}
 			}
-
+			mut  is_endline:= false
+			if token == .ident && c.source.peak == `\n`  {
+				is_endline = true
+			}
 			return TokenRef{
 				idx:      idx
 				table:    table
 				token:    token
 				bin:      bin
+				is_endline: is_endline
 				pos_line: c.source.line
+				start_pos: current_pos
+				end_pos: current_pos + ident.len - 1
 				pos_char: c.source.char
 			}
 		}
