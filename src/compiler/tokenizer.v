@@ -266,20 +266,20 @@ fn (mut c Compiler) parse_next_token_priv() !TokenRef {
 				}
 				else {}
 			}
-			mut  is_endline:= false
-			if token == .ident && c.source.peak == `\n`  {
+			mut is_endline := false
+			if token == .ident && c.source.peak == `\n` {
 				is_endline = true
 			}
 			return TokenRef{
-				idx:      idx
-				table:    table
-				token:    token
-				bin:      bin
+				idx:        idx
+				table:      table
+				token:      token
+				bin:        bin
 				is_endline: is_endline
-				pos_line: c.source.line
-				start_pos: current_pos
-				end_pos: current_pos + ident.len - 1
-				pos_char: c.source.char
+				pos_line:   c.source.line
+				start_pos:  current_pos
+				end_pos:    current_pos + ident.len - 1
+				pos_char:   c.source.char
 			}
 		}
 		is_string_delimiter(c.source.current) {

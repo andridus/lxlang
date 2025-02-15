@@ -45,9 +45,13 @@ fn (a NodeAttributes) str() string {
 struct List {
 	items []Node0
 }
+
 fn List.new(nodes []Node0) Node0 {
-	return List{items: nodes}
+	return List{
+		items: nodes
+	}
 }
+
 fn (n0 List) to_str() string {
 	return 'LIST Node0'
 }
@@ -65,7 +69,13 @@ fn (n0 List) left() Node0 {
 }
 
 fn (n0 List) right() Node0 {
-	return if n0.items.len > 0 { List{items: n0.items[1..]} } else { List{} }
+	return if n0.items.len > 0 {
+		List{
+			items: n0.items[1..]
+		}
+	} else {
+		List{}
+	}
 }
 
 fn (n0 List) as_list() []Node0 {
@@ -213,12 +223,12 @@ fn (t Tuple2) is_literal() bool {
 
 pub struct TokenRef {
 pub:
-	token    Token
-	pos_line int
-	pos_char int
-	start_pos int
-	end_pos int
-	bin      string
+	token      Token
+	pos_line   int
+	pos_char   int
+	start_pos  int
+	end_pos    int
+	bin        string
 	is_endline bool
 pub mut:
 	idx     int
@@ -257,6 +267,7 @@ fn (tk TokenRef) is_literal() bool {
 pub fn (t TokenRef) positions() (int, int) {
 	return t.pos_line, t.pos_char
 }
+
 pub fn (t TokenRef) positions1() (int, int, int) {
 	return t.pos_line, t.start_pos, t.end_pos
 }

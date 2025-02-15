@@ -17,7 +17,8 @@ fn (mut c Compiler) parse_module() !Node0 {
 	}
 	right1 := into_block(elems)
 	c.match_next(.end)!
-	return Tuple3.new(left_node0, List.new([right0_node0, List.new([
-		Tuple2.new(TokenRef{ token: .do }, right1),
-	])]))
+	return Tuple3.new(left_node0, List.new([right0_node0,
+		List.new([
+			Tuple2.new(TokenRef{ token: .do }, right1),
+		])]))
 }

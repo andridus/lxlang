@@ -47,7 +47,7 @@ fn (mut c Compiler) parse_expr() !Node0 {
 		match_term := Tuple2.new(TokenRef{ token: .match }, right_term)
 		term = Tuple3.new_attrs(left_term, match_term, attrs)
 	}
-	if c.peak_token.token == .operator && c.peak_token.bin in ['=>', '=', '==', 'in', '|>']  {
+	if c.peak_token.token == .operator && c.peak_token.bin in ['=>', '=', '==', 'in', '|>'] {
 		c.next_token()
 		match c.current_token.bin {
 			'=>' {
@@ -63,7 +63,8 @@ fn (mut c Compiler) parse_expr() !Node0 {
 					type_id:         type_id
 					type_match:      type_match
 				}
-				return Tuple3.new_attrs(TokenRef{ token: .match }, List.new([term, right]), attrs)
+				return Tuple3.new_attrs(TokenRef{ token: .match }, List.new([term, right]),
+					attrs)
 			}
 			'==' {
 				// need to be check if is a equals expressions
@@ -74,7 +75,8 @@ fn (mut c Compiler) parse_expr() !Node0 {
 					type_id:         type_id
 					type_match:      type_match
 				}
-				return Tuple3.new_attrs(TokenRef{ token: .eq }, List.new([term, right]), attrs)
+				return Tuple3.new_attrs(TokenRef{ token: .eq }, List.new([term, right]),
+					attrs)
 			}
 			'in' {
 				in_tok := TokenRef{
@@ -93,7 +95,6 @@ fn (mut c Compiler) parse_expr() !Node0 {
 			// 	mut clauses := []Node0{}
 			// 	mut clauses_header := map[int]Node0{}
 			// 	clauses_header[0] = term
-
 			// 	mut clauses_body := map[int][]Node0{}
 			// 	mut i := 0
 			// 	for c.peak_token.token != .end {
@@ -148,7 +149,7 @@ fn (mut c Compiler) parse_term() !Node0 {
 				c.next_token()
 				clause := c.parse_expr()!
 				if c.peak_token.token == .operator && c.peak_token.bin == '->' {
-				c.next_token()
+					c.next_token()
 					i++
 					clauses_header[i] = clause
 				} else {
