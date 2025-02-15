@@ -106,7 +106,7 @@ fn (mut c Compiler) parse_function() !Node0 {
 		c.match_next(.end)!
 	}
 
-	c.functions_body[function_name.idx] = right0
+	// c.functions_body[function_name.idx] = right0
 	return Tuple3.new(left, List.new(right))
 }
 
